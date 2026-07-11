@@ -17,7 +17,7 @@ WORKDIR $HOME/app
 RUN chown -R user:user $HOME
 USER user
 
-RUN curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash
+RUN curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash -s -- --skip-setup --skip-browser
 
 # Bağımlılıkları kuruyoruz
 COPY --chown=user:user requirements.txt .
@@ -27,13 +27,12 @@ RUN pip install --no-cache-dir --user -r requirements.txt
 COPY --chown=user:user . .
 
 # --- YENİ BÖLÜM: DERLEME ESNASINDA AUTH AYARI ---
-# Hermes'in config dizinini oluşturuyoruz
-RUN mkdir -p $HOME/.config/hermes
-
-# Veya runtime'da esneklik sağlamak için alt adımları takip edebilirsiniz.
 # Hem kullanıcı dizinine hem de alternatif arama yollarına config'i gömüyoruz
 RUN mkdir -p $HOME/.config/hermes && \
     cp config.yaml $HOME/.config/hermes/config.yaml
+
+RUN mkdir -p $HOME/.hermes && \
+    cp config.yaml $HOME/.hermes/config.yaml
 
 RUN chmod +x scripts/start.sh
 
