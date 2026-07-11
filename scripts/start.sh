@@ -28,4 +28,6 @@ export HERMES_CONFIG_PATH="$HOME/.hermes/config.yaml"
 # 1. Host 0.0.0.0 olmalı (dışarıdan erişim için).
 # 2. Arka planda değil (&), ön planda çalışmalı (konteynerin kapanmaması için).
 # 3. 'exec' kullanarak sinyal yönetimini kolaylaştırıyoruz.
-exec hermes dashboard --port "$TARGET_PORT" --host 0.0.0.0
+# 4. --insecure parametresi 0.0.0.0 (localhost dışı) arayüzüne bağlanabilmek için zorunludur.
+# 5. --no-open parametresi tarayıcıyı otomatik açmaya çalışmasını engeller.
+exec hermes dashboard --port "$TARGET_PORT" --host 0.0.0.0 --insecure --no-open
