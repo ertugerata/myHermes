@@ -318,8 +318,8 @@ dashboard:
     client_id: ''
     portal_url: ''
   basic_auth:
-    username: "admin"
-    password_hash: scrypt6384UQ4uXFEdtVDdOHLuKaP+g==/Idu4H/OcxoRWm2ZtOEN4U4VUixDRMUmqaBMrOcxU=
+    username: ''
+    password_hash: ''
     password: ''
     secret: ''
     session_ttl_seconds: 0
