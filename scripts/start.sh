@@ -2,6 +2,21 @@
 
 TARGET_PORT=${PORT:-7860}
 
+echo "=== DNS HAZIRLIĞI VE ÖNÇÖZÜMLEME ==="
+# Runs dns-resolve.py to pre-resolve blocked domains via DNS-over-HTTPS.
+# It will write resolved mappings to /tmp/dns-resolved.json
+python3 scripts/dns-resolve.py /tmp/dns-resolved.json &
+DNS_PID=$!
+echo "DNS çözücü PID: $DNS_PID"
+
+# Node.js süreçleri için dns-fix.cjs yüklenmesi sağlanıyor.
+export NODE_OPTIONS="${NODE_OPTIONS:+$NODE_OPTIONS }--require $HOME/app/scripts/dns-fix.cjs"
+
+# Python süreçleri için sitecustomize.py yüklenmesi sağlanıyor.
+# sitecustomize.py'ın otomatik olarak yüklenebilmesi için scripts dizini PYTHONPATH'e eklenir.
+export PYTHONPATH="$HOME/app/scripts${PYTHONPATH:+:$PYTHONPATH}"
+echo "✔ PYTHONPATH ayarlandı: $PYTHONPATH"
+
 echo "=== VERİ GERİ YÜKLEME AŞAMASI ==="
 if [ -n "$HF_TOKEN" ] && [ -f "$HOME/app/hermes_backup.tar.gz" ]; then
     echo "Eski yedek açılıyor..."

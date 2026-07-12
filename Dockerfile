@@ -34,6 +34,6 @@ RUN mkdir -p $HOME/.config/hermes && \
 RUN mkdir -p $HOME/.hermes && \
     cp config.yaml $HOME/.hermes/config.yaml
 
-RUN chmod +x scripts/start.sh
+RUN chmod +x scripts/start.sh scripts/dns-resolve.py
 
 CMD ["./scripts/start.sh"]
