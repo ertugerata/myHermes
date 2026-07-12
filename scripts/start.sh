@@ -40,22 +40,52 @@ with open(config_path, 'r') as f:
 db_cfg = cfg.setdefault('dashboard', {})
 ba_cfg = db_cfg.setdefault('basic_auth', {})
 
-username = os.environ.get('HERMES_DASHBOARD_BASIC_AUTH_USERNAME', ba_cfg.get('username', '')).strip()
+username = os.environ.get('HERMES_DASHBOARD_BASIC_AUTH_USERNAME', '').strip()
+if not username:
+    username = ba_cfg.get('username', '').strip()
 if not username:
     username = 'admin'
 
-password = os.environ.get('HERMES_DASHBOARD_BASIC_AUTH_PASSWORD', ba_cfg.get('password', '')).strip()
-password_hash = os.environ.get('HERMES_DASHBOARD_BASIC_AUTH_PASSWORD_HASH', ba_cfg.get('password_hash', '')).strip()
+env_password = os.environ.get('HERMES_DASHBOARD_BASIC_AUTH_PASSWORD', '').strip()
+env_password_hash = os.environ.get('HERMES_DASHBOARD_BASIC_AUTH_PASSWORD_HASH', '').strip()
 
-if not password_hash:
-    if not password:
-        password = secrets.token_urlsafe(12)
-        print(f'=== GENERATED_PASSWORD_START ===\n{password}\n=== GENERATED_PASSWORD_END ===')
-    password_hash = hash_password(password)
+if env_password_hash:
+    password_hash = env_password_hash
+elif env_password:
+    password_hash = hash_password(env_password)
+else:
+    password_hash = ba_cfg.get('password_hash', '').strip()
+    if not password_hash:
+        cfg_password = ba_cfg.get('password', '').strip()
+        if cfg_password:
+            password_hash = hash_password(cfg_password)
+        else:
+            password = secrets.token_urlsafe(12)
+            print(f'=== GENERATED_PASSWORD_START ===\n{password}\n=== GENERATED_PASSWORD_END ===')
+            password_hash = hash_password(password)
 
 ba_cfg['username'] = username
 ba_cfg['password_hash'] = password_hash
 ba_cfg['password'] = ''
+
+# Ensure the basic authentication plugin is enabled and not disabled (Fix for #54489)
+plugins_cfg = cfg.setdefault('plugins', {})
+
+disabled_list = plugins_cfg.get('disabled')
+if isinstance(disabled_list, list):
+    if 'basic' in disabled_list:
+        disabled_list.remove('basic')
+elif disabled_list is not None:
+    plugins_cfg['disabled'] = []
+else:
+    plugins_cfg['disabled'] = []
+
+enabled_list = plugins_cfg.get('enabled')
+if isinstance(enabled_list, list):
+    if 'basic' not in enabled_list:
+        enabled_list.append('basic')
+else:
+    plugins_cfg['enabled'] = ['basic']
 
 with open(config_path, 'w') as f:
     yaml.safe_dump(cfg, f, default_flow_style=False)
