@@ -226,7 +226,7 @@ curator:
 dashboard:
   basic_auth:
     password: ''
-    password_hash: scrypt$16384$8$1$83Wt0iLIOuITo04KEJZsPA==$lmkWqz7wKiC5nCwPZiq6ZWD6X6ikCFoM+bARzGLJAnI=
+    password_hash: ''
     secret: ''
     session_ttl_seconds: 0
     username: admin
