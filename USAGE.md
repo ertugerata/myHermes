@@ -90,6 +90,8 @@ Uygulamanın oturum geçmişi, veritabanı ve ayarları (`.hermes` dizini ve `co
 
 > 🔒 **Güvenlik Bilgisi:** Başlangıç loglarında veya push işlemlerinde herhangi bir hata oluşması durumunda, güvenlik amacıyla `GITHUB_TOKEN` değeriniz otomatik olarak maskelenir (`[MASKED_TOKEN]`) ve loglarda açık bir şekilde görünmesi engellenir.
 
+> 📦 **Büyük Dosya ve Limit Koruması:** GitHub dosya boyutu limitlerini (örn: 50MB/100MB limitleri) aşmamak için, sistem büyük boyutlu çalışma ortamı binary dosyalarını ve ortam bağımlılıklarını (`.hermes/bin`, `.hermes/node`, `.hermes/hermes-agent`, `.hermes/venv`, `.hermes/node_modules`) yedeklemeden otomatik olarak hariç tutar. Bu sayede sadece veri tabanınız, geçmiş oturumlarınız ve ayarlarınız hızlı ve sorunsuz şekilde yedeklenir.
+
 ---
 
 ## 🔑 Çevre Değişkenleri (Environment Variables) ve Sırlar (Secrets)

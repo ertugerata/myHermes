@@ -28,6 +28,13 @@ do_git_backup() {
         # Copy everything in ~/.hermes except lock files/sockets
         cp -rf "$HOME/.hermes/"* "$HOME/hermes_backup_git/.hermes/" 2>/dev/null || true
 
+        # Remove large binary directories to stay within GitHub file size limits
+        rm -rf "$HOME/hermes_backup_git/.hermes/bin"
+        rm -rf "$HOME/hermes_backup_git/.hermes/node"
+        rm -rf "$HOME/hermes_backup_git/.hermes/hermes-agent"
+        rm -rf "$HOME/hermes_backup_git/.hermes/venv"
+        rm -rf "$HOME/hermes_backup_git/.hermes/node_modules"
+
         # Sync config.yaml if it exists
         if [ -f "$HOME/app/config.yaml" ]; then
             cp -f "$HOME/app/config.yaml" "$HOME/hermes_backup_git/config.yaml"
@@ -38,6 +45,22 @@ do_git_backup() {
         # Ensure git identity is set
         git config user.name "Hermes Backup Bot"
         git config user.email "hermes-backup-bot@users.noreply.github.com"
+
+        # Ensure .gitignore exists inside the repo to ignore large binaries
+        cat << 'EOF' > .gitignore
+# Large binary runtimes and environments
+.hermes/bin/
+.hermes/node/
+.hermes/hermes-agent/
+.hermes/venv/
+.hermes/node_modules/
+*.log
+*.tmp
+*.lock
+EOF
+
+        # Untrack any accidentally tracked large files/directories
+        git rm -r --cached .hermes/bin .hermes/node .hermes/hermes-agent .hermes/venv .hermes/node_modules 2>/dev/null || true
 
         # Add changes
         git add .
