@@ -1,5 +1,6 @@
 #!/bin/bash
 
+SCRIPT_START_TS=$(date +%s)
 TARGET_PORT=${PORT:-7860}
 
 echo "=== DNS HAZIRLIĞI VE ÖNÇÖZÜMLEME ==="
@@ -77,10 +78,16 @@ EOF
             fi
 
             echo "Yedek GitHub'a yükleniyor ($CURRENT_BRANCH)..."
-            git push origin "$CURRENT_BRANCH" > /tmp/git_push.log 2>&1
+            # NOT: timeout + lowSpeedLimit/lowSpeedTime eklendi. Böylece yavaş/kopuk
+            # bir ağ bağlantısında push işlemi süresiz asılı kalıp başlangıcı
+            # bloke etmez; en fazla ~90 saniye içinde vazgeçer.
+            timeout 90 git -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=15 \
+                push origin "$CURRENT_BRANCH" > /tmp/git_push.log 2>&1
             PUSH_STATUS=$?
             if [ $PUSH_STATUS -eq 0 ]; then
                 echo "✔ Yedek başarıyla GitHub deposuna gönderildi."
+            elif [ $PUSH_STATUS -eq 124 ]; then
+                echo "❌ HATA: Yedek gönderimi zaman aşımına uğradı (90sn), atlanıyor."
             else
                 echo "❌ HATA: Yedek GitHub'a gönderilemedi."
                 if [ -n "$GIT_TOKEN" ]; then
@@ -187,10 +194,20 @@ if [ -n "$REPO_URL" ]; then
     rm -rf "$BACKUP_GIT_DIR"
 
     echo "Yedek deposu klonlanıyor..."
-    git clone --depth 1 "$AUTH_REPO_URL" "$BACKUP_GIT_DIR" > /tmp/git_clone.log 2>&1
+    # NOT: Aşağıdaki üç ayar start süresinin tıkanmasını önlemek için eklendi:
+    #   - timeout 90            -> klonlama 90sn içinde bitmezse zorla iptal eder
+    #   - http.lowSpeedLimit/Time -> bağlantı çok yavaşsa (ör. HF Spaces ağ kısıtı)
+    #     15 saniye boyunca 1000 byte/sn altına düşerse bağlantıyı keser
+    #   - --single-branch       -> gereksiz branch/geçmiş verisini çekmeyi engeller
+    # Böylece backup deposu büyükse veya ağ sorunluysa hermes'in başlaması
+    # süresiz bloke olmaz.
+    CLONE_START_TS=$(date +%s)
+    timeout 90 git -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=15 \
+        clone --depth 1 --single-branch "$AUTH_REPO_URL" "$BACKUP_GIT_DIR" > /tmp/git_clone.log 2>&1
     CLONE_STATUS=$?
+    CLONE_ELAPSED=$(( $(date +%s) - CLONE_START_TS ))
     if [ $CLONE_STATUS -eq 0 ]; then
-        echo "✔ Yedek deposu başarıyla klonlandı."
+        echo "✔ Yedek deposu başarıyla klonlandı. (${CLONE_ELAPSED}sn sürdü)"
 
         # Configure git identity inside the cloned repo
         cd "$BACKUP_GIT_DIR"
@@ -217,8 +234,13 @@ if [ -n "$REPO_URL" ]; then
         if [ -f "$BACKUP_GIT_DIR/hermes_backup.tar.gz" ]; then
             safe_extract_tar_backup "$BACKUP_GIT_DIR/hermes_backup.tar.gz"
         fi
+    elif [ $CLONE_STATUS -eq 124 ]; then
+        echo "❌ HATA: Yedek deposu klonlama zaman aşımına uğradı (90sn, ${CLONE_ELAPSED}sn sonra iptal edildi)."
+        echo "    Depo çok büyük olabilir (geçmiş commit'lerde .hermes/venv, .hermes/node_modules gibi"
+        echo "    büyük klasörler kalmış olabilir) ya da ağ bağlantısı yavaş/kısıtlı. Yedek geri yükleme"
+        echo "    atlanıyor, uygulama normal şekilde başlatılmaya devam ediyor."
     else
-        echo "❌ HATA: Yedek deposu klonlanamadı."
+        echo "❌ HATA: Yedek deposu klonlanamadı. (${CLONE_ELAPSED}sn sonra, kod: $CLONE_STATUS)"
         if [ -n "$GIT_TOKEN" ]; then
             sed "s/$GIT_TOKEN/[MASKED_TOKEN]/g" /tmp/git_clone.log
         else
@@ -336,6 +358,8 @@ echo "✔ config.yaml doğru konumlarda (hem ~/.hermes/ hem de ~/.config/hermes/
 
 echo "=== HERMES AGENT BAŞLATILIYOR ==="
 echo "Dinlenen Port: $TARGET_PORT"
+PRE_START_ELAPSED=$(( $(date +%s) - SCRIPT_START_TS ))
+echo "ℹ Buraya kadar (DNS + yedek geri yükleme + auth ayarı) geçen süre: ${PRE_START_ELAPSED}sn"
 
 # Bazı Hermes sürümleri config yolunu çevre değişkeninden okur:
 export HERMES_CONFIG_PATH="$HOME/.hermes/config.yaml"
