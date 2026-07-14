@@ -75,3 +75,38 @@ Hermes Agent'ın çalışabilmesi için yapılandırdığınız modele bağlı o
 
 - **Güvenlik:** Dashboard'u dış dünyaya açık (`0.0.0.0` bind) olarak çalıştırırken **kesinlikle** güçlü bir şifre (`HERMES_DASHBOARD_BASIC_AUTH_PASSWORD`) belirleyin. Aksi takdirde, otomatik üretilen şifreyi loglardan takip etmeniz gerekir.
 - **Kalıcılık (Persistence):** Hugging Face Spaces geçici bir dosya sistemi kullandığından, oluşturulan veya indirilen dosyalar Space yeniden başladığında silinir. Kalıcılık gerektiren işlemler için yedekleme veya harici veri tabanı entegrasyonu önerilir.
+
+---
+
+## 🔄 GitHub ve Hugging Face Spaces Senkronizasyonu
+
+### 1. Kodların Aynı Olup Olmadığını Kontrol Etme
+Hugging Face üzerindeki Space'iniz **özel (private)** olduğu için, dışarıdan veya yetkisiz araçlarla doğrudan kodların birebir karşılaştırılması mümkün değildir. Ancak kendi bilgisayarınızda şu adımlarla karşılaştırma yapabilirsiniz:
+1. Hugging Face Space'inizi bilgisayarınıza klonlayın (Hugging Face kullanıcı adınız ve write/read token'ınız ile):
+   ```bash
+   git clone https://huggingface.co/spaces/ertugrulerata/myHermes hf_deposu
+   ```
+2. GitHub deponuzdaki dosyalar ile bu klasörü karşılaştırın.
+3. *Alternatif olarak, aşağıdaki otomatik senkronizasyonu kurduğunuzda, her push işleminde GitHub'daki kodlarınız otomatik olarak Hugging Face'e yüklenecek ve kodlarınız her zaman birebir aynı olacaktır!*
+
+### 2. GitHub'dan Hugging Face'e Otomatik Yükleme (GitHub Actions)
+GitHub deponuza kod yüklediğinizde, bu kodların otomatik olarak Hugging Face Space'inize senkronize edilmesi için `.github/workflows/hf-sync.yml` iş akışı (workflow) dosyası oluşturulmuştur.
+
+Bu sistemin çalışması için GitHub deponuza Hugging Face erişim token'ınızı (Secret) tanımlamanız gerekir.
+
+#### Adım Adım Kurulum:
+1. **Hugging Face Token Alın:**
+   - [Hugging Face Access Tokens](https://huggingface.co/settings/tokens) sayfasına gidin.
+   - **New Token** butonuna tıklayın.
+   - Token rolünü **Write** (Yazma yetkisi) olarak seçin, bir isim verin ve oluşturulan token'ı kopyalayın.
+
+2. **GitHub Deponuza Token'ı Ekleyin:**
+   - GitHub'daki deponuzun sayfasına gidin (tarayıcıdan).
+   - Üst menüden **Settings (Ayarlar)** sekmesine tıklayın.
+   - Sol menüden **Secrets and variables** -> **Actions** seçeneğine tıklayın.
+   - **New repository secret** butonuna tıklayın.
+   - **Name** alanına tam olarak şu adı yazın: `HF_TOKEN`
+   - **Secret** alanına az önce kopyaladığınız Hugging Face Token'ınızı yapıştırın.
+   - **Add secret** butonuna tıklayarak kaydedin.
+
+Artık GitHub deponuzun `main` dalına (branch) her `git push` yaptığınızda, GitHub Actions otomatik olarak devreye girecek ve en güncel kodlarınızı Hugging Face Space'inize yükleyecektir. İşlemin durumunu GitHub deponuzdaki **Actions** sekmesinden takip edebilirsiniz.
