@@ -133,6 +133,40 @@ cleanup() {
     exit 0
 }
 
+# Safe tar.gz backup extraction helper to protect the app/ directory from being overwritten
+safe_extract_tar_backup() {
+    local TAR_FILE="$1"
+    if [ -f "$TAR_FILE" ]; then
+        echo "Yedek dosyası güvenli şekilde açılıyor: $TAR_FILE"
+        local TMP_DIR="/tmp/hermes_restore_tar"
+        rm -rf "$TMP_DIR"
+        mkdir -p "$TMP_DIR"
+
+        # Extract the tarball to the temp directory
+        tar -xzf "$TAR_FILE" -C "$TMP_DIR" 2>/dev/null || true
+
+        # Restore .hermes if it exists in the extracted files
+        if [ -d "$TMP_DIR/.hermes" ]; then
+            echo "Yedek .hermes verileri geri yükleniyor..."
+            mkdir -p "$HOME/.hermes"
+            cp -rf "$TMP_DIR/.hermes/"* "$HOME/.hermes/" 2>/dev/null || true
+        fi
+
+        # Restore config.yaml if it exists in the extracted files
+        if [ -f "$TMP_DIR/config.yaml" ]; then
+            echo "Yedek config.yaml geri yükleniyor..."
+            cp -f "$TMP_DIR/config.yaml" "$HOME/app/config.yaml"
+        elif [ -f "$TMP_DIR/app/config.yaml" ]; then
+            echo "Yedek config.yaml geri yükleniyor (app dizininden)..."
+            cp -f "$TMP_DIR/app/config.yaml" "$HOME/app/config.yaml"
+        fi
+
+        # Clean up temp directory
+        rm -rf "$TMP_DIR"
+        echo "✔ Yedek başarıyla açıldı, app dizini korundu."
+    fi
+}
+
 echo "=== VERİ GERİ YÜKLEME AŞAMASI (GITHUB BACKUP) ==="
 REPO_URL="${GITHUB_BACKUP_REPO:-$BACKUP_REPO}"
 GIT_TOKEN="${GITHUB_TOKEN:-$GH_TOKEN}"
@@ -181,9 +215,7 @@ if [ -n "$REPO_URL" ]; then
 
         # Backward compatibility with tar.gz backup
         if [ -f "$BACKUP_GIT_DIR/hermes_backup.tar.gz" ]; then
-            echo "Eski zip yedeği açılıyor (hermes_backup.tar.gz)..."
-            tar -xzf "$BACKUP_GIT_DIR/hermes_backup.tar.gz" -C "$HOME/"
-            echo "✔ hermes_backup.tar.gz başarıyla açıldı."
+            safe_extract_tar_backup "$BACKUP_GIT_DIR/hermes_backup.tar.gz"
         fi
     else
         echo "❌ HATA: Yedek deposu klonlanamadı."
@@ -197,8 +229,7 @@ if [ -n "$REPO_URL" ]; then
 else
     echo "Bilgilendirme: GITHUB_BACKUP_REPO tanımlı değil. GitHub yedekleme aktif edilmedi."
     if [ -n "$HF_TOKEN" ] && [ -f "$HOME/app/hermes_backup.tar.gz" ]; then
-        echo "Eski yerel yedek açılıyor..."
-        tar -xzf "$HOME/app/hermes_backup.tar.gz" -C "$HOME/"
+        safe_extract_tar_backup "$HOME/app/hermes_backup.tar.gz"
     fi
 fi
 
