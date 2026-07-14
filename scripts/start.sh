@@ -17,10 +17,166 @@ export NODE_OPTIONS="${NODE_OPTIONS:+$NODE_OPTIONS }--require $HOME/app/scripts/
 export PYTHONPATH="$HOME/app/scripts${PYTHONPATH:+:$PYTHONPATH}"
 echo "✔ PYTHONPATH ayarlandı: $PYTHONPATH"
 
-echo "=== VERİ GERİ YÜKLEME AŞAMASI ==="
-if [ -n "$HF_TOKEN" ] && [ -f "$HOME/app/hermes_backup.tar.gz" ]; then
-    echo "Eski yedek açılıyor..."
-    tar -xzf "$HOME/app/hermes_backup.tar.gz" -C "$HOME/"
+# Helper function to perform git backup
+do_git_backup() {
+    if [ -d "$HOME/hermes_backup_git" ]; then
+        echo "Yedek dosyaları hazırlanıyor..."
+
+        # Sync .hermes to the git repo
+        mkdir -p "$HOME/hermes_backup_git/.hermes"
+
+        # Copy everything in ~/.hermes except lock files/sockets
+        cp -rf "$HOME/.hermes/"* "$HOME/hermes_backup_git/.hermes/" 2>/dev/null || true
+
+        # Sync config.yaml if it exists
+        if [ -f "$HOME/app/config.yaml" ]; then
+            cp -f "$HOME/app/config.yaml" "$HOME/hermes_backup_git/config.yaml"
+        fi
+
+        cd "$HOME/hermes_backup_git"
+
+        # Ensure git identity is set
+        git config user.name "Hermes Backup Bot"
+        git config user.email "hermes-backup-bot@users.noreply.github.com"
+
+        # Add changes
+        git add .
+
+        # Check if there are changes to commit
+        if ! git diff --quiet HEAD 2>/dev/null || ! git diff --cached --quiet 2>/dev/null; then
+            echo "Yeni değişiklikler algılandı. Yedek commit ediliyor..."
+            git commit -m "Automated backup: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+
+            CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+            if [ -z "$CURRENT_BRANCH" ] || [ "$CURRENT_BRANCH" = "HEAD" ]; then
+                CURRENT_BRANCH="main"
+                git checkout -b main 2>/dev/null || true
+            fi
+
+            echo "Yedek GitHub'a yükleniyor ($CURRENT_BRANCH)..."
+            git push origin "$CURRENT_BRANCH" > /tmp/git_push.log 2>&1
+            PUSH_STATUS=$?
+            if [ $PUSH_STATUS -eq 0 ]; then
+                echo "✔ Yedek başarıyla GitHub deposuna gönderildi."
+            else
+                echo "❌ HATA: Yedek GitHub'a gönderilemedi."
+                if [ -n "$GIT_TOKEN" ]; then
+                    sed "s/$GIT_TOKEN/[MASKED_TOKEN]/g" /tmp/git_push.log
+                else
+                    cat /tmp/git_push.log
+                fi
+            fi
+            rm -f /tmp/git_push.log
+        else
+            echo "Yedeklemede yeni değişiklik yok."
+        fi
+        cd "$HOME/app"
+    fi
+}
+
+# Periodic backup loop running in the background
+start_backup_loop() {
+    if [ -d "$HOME/hermes_backup_git" ]; then
+        echo "Periyodik yedekleme arka plan servisi başlatılıyor..."
+        (
+            # Wait 5 minutes before first backup
+            sleep 300
+            while true; do
+                echo "=== PERİYODİK YEDEKLEME BAŞLADI ==="
+                do_git_backup
+                sleep 1800
+            done
+        ) &
+        BACKUP_LOOP_PID=$!
+        echo "Yedekleme servis PID: $BACKUP_LOOP_PID"
+    fi
+}
+
+# Trap handler for graceful shutdown and final backup
+cleanup() {
+    echo "=== ALINAN SİNYAL: GRACEFUL SHUTDOWN BAŞLATILIYOR ==="
+    if [ -n "$BACKUP_LOOP_PID" ]; then
+        kill "$BACKUP_LOOP_PID" 2>/dev/null || true
+    fi
+    if [ -d "$HOME/hermes_backup_git" ]; then
+        echo "Son kez yedek alınıyor ve GitHub'a yükleniyor..."
+        do_git_backup
+    fi
+    if [ -n "$HERMES_PID" ]; then
+        echo "Hermes durduruluyor..."
+        kill -TERM "$HERMES_PID" 2>/dev/null || true
+        wait "$HERMES_PID" 2>/dev/null || true
+    fi
+    exit 0
+}
+
+echo "=== VERİ GERİ YÜKLEME AŞAMASI (GITHUB BACKUP) ==="
+REPO_URL="${GITHUB_BACKUP_REPO:-$BACKUP_REPO}"
+GIT_TOKEN="${GITHUB_TOKEN:-$GH_TOKEN}"
+
+if [ -n "$REPO_URL" ]; then
+    echo "GitHub yedekleme aktif..."
+    AUTH_REPO_URL="$REPO_URL"
+    if [ -n "$GIT_TOKEN" ]; then
+        if [[ "$REPO_URL" =~ ^https:// ]]; then
+            CLEAN_URL="${REPO_URL#https://}"
+            AUTH_REPO_URL="https://${GIT_TOKEN}@${CLEAN_URL}"
+        else
+            AUTH_REPO_URL="https://${GIT_TOKEN}@${REPO_URL}"
+        fi
+    fi
+
+    BACKUP_GIT_DIR="$HOME/hermes_backup_git"
+    rm -rf "$BACKUP_GIT_DIR"
+
+    echo "Yedek deposu klonlanıyor..."
+    git clone --depth 1 "$AUTH_REPO_URL" "$BACKUP_GIT_DIR" > /tmp/git_clone.log 2>&1
+    CLONE_STATUS=$?
+    if [ $CLONE_STATUS -eq 0 ]; then
+        echo "✔ Yedek deposu başarıyla klonlandı."
+
+        # Configure git identity inside the cloned repo
+        cd "$BACKUP_GIT_DIR"
+        git config user.name "Hermes Backup Bot"
+        git config user.email "hermes-backup-bot@users.noreply.github.com"
+        cd "$HOME/app"
+
+        # Restore .hermes if it exists
+        if [ -d "$BACKUP_GIT_DIR/.hermes" ]; then
+            echo "Yedek veriler geri yükleniyor (.hermes)..."
+            mkdir -p "$HOME/.hermes"
+            cp -rf "$BACKUP_GIT_DIR/.hermes/"* "$HOME/.hermes/" 2>/dev/null || true
+            echo "✔ .hermes geri yüklendi."
+        fi
+
+        # Restore config.yaml if it exists
+        if [ -f "$BACKUP_GIT_DIR/config.yaml" ]; then
+            echo "Yedek config.yaml geri yükleniyor..."
+            cp -f "$BACKUP_GIT_DIR/config.yaml" "$HOME/app/config.yaml"
+            echo "✔ config.yaml geri yüklendi."
+        fi
+
+        # Backward compatibility with tar.gz backup
+        if [ -f "$BACKUP_GIT_DIR/hermes_backup.tar.gz" ]; then
+            echo "Eski zip yedeği açılıyor (hermes_backup.tar.gz)..."
+            tar -xzf "$BACKUP_GIT_DIR/hermes_backup.tar.gz" -C "$HOME/"
+            echo "✔ hermes_backup.tar.gz başarıyla açıldı."
+        fi
+    else
+        echo "❌ HATA: Yedek deposu klonlanamadı."
+        if [ -n "$GIT_TOKEN" ]; then
+            sed "s/$GIT_TOKEN/[MASKED_TOKEN]/g" /tmp/git_clone.log
+        else
+            cat /tmp/git_clone.log
+        fi
+    fi
+    rm -f /tmp/git_clone.log
+else
+    echo "Bilgilendirme: GITHUB_BACKUP_REPO tanımlı değil. GitHub yedekleme aktif edilmedi."
+    if [ -n "$HF_TOKEN" ] && [ -f "$HOME/app/hermes_backup.tar.gz" ]; then
+        echo "Eski yerel yedek açılıyor..."
+        tar -xzf "$HOME/app/hermes_backup.tar.gz" -C "$HOME/"
+    fi
 fi
 
 echo "=== AUTHENTICATION YAPILANDIRILIYOR ==="
@@ -130,10 +286,21 @@ echo "Dinlenen Port: $TARGET_PORT"
 # Bazı Hermes sürümleri config yolunu çevre değişkeninden okur:
 export HERMES_CONFIG_PATH="$HOME/.hermes/config.yaml"
 
+# Register trap for SIGTERM and SIGINT
+trap cleanup SIGTERM SIGINT
+
+# Start the periodic backup loop in background
+start_backup_loop
+
 # Hugging Face Spaces üzerinde çalışabilmesi için:
 # 1. Host 0.0.0.0 olmalı (dışarıdan erişim için).
-# 2. Arka planda değil (&), ön planda çalışmalı (konteynerin kapanmaması için).
-# 3. 'exec' kullanarak sinyal yönetimini kolaylaştırıyoruz.
-# 4. --insecure parametresi 0.0.0.0 (localhost dışı) arayüzüne bağlanabilmek için zorunludur.
-# 5. --no-open parametresi tarayıcıyı otomatik açmaya çalışmasını engeller.
-exec hermes dashboard --port "$TARGET_PORT" --host 0.0.0.0 --insecure --no-open
+# 2. Arka planda çalıştırıp bash ile sinyal yakalıyoruz (trap).
+# 3. --no-open parametresi tarayıcıyı otomatik açmaya çalışmasını engeller.
+hermes dashboard --port "$TARGET_PORT" --host 0.0.0.0 --no-open &
+HERMES_PID=$!
+
+echo "Hermes Dashboard PID: $HERMES_PID"
+
+# Wait for hermes dashboard process
+wait "$HERMES_PID"
+echo "Hermes durdu veya sinyal alındı. Çıkılıyor."
