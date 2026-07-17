@@ -18,30 +18,9 @@ export NODE_OPTIONS="${NODE_OPTIONS:+$NODE_OPTIONS }--require $HOME/app/scripts/
 export PYTHONPATH="$HOME/app/scripts${PYTHONPATH:+:$PYTHONPATH}"
 echo "✔ PYTHONPATH ayarlandı: $PYTHONPATH"
 
-# Periodic backup loop running in the background
-start_backup_loop() {
-    echo "Periyodik yedekleme arka plan servisi başlatılıyor..."
-    (
-        # Wait 5 minutes before first backup
-        sleep 300
-        while true; do
-            echo "=== PERİYODİK YEDEKLEME BAŞLADI ==="
-            ./scripts/github-backup.sh backup
-            sleep 1800
-        done
-    ) &
-    BACKUP_LOOP_PID=$!
-    echo "Yedekleme servis PID: $BACKUP_LOOP_PID"
-}
-
-# Trap handler for graceful shutdown and final backup
+# Trap handler for graceful shutdown
 cleanup() {
     echo "=== ALINAN SİNYAL: GRACEFUL SHUTDOWN BAŞLATILIYOR ==="
-    if [ -n "$BACKUP_LOOP_PID" ]; then
-        kill "$BACKUP_LOOP_PID" 2>/dev/null || true
-    fi
-    echo "Son kez yedek alınıyor ve GitHub'a yükleniyor..."
-    ./scripts/github-backup.sh backup
     if [ -n "$HERMES_PID" ]; then
         echo "Hermes durduruluyor..."
         kill -TERM "$HERMES_PID" 2>/dev/null || true
@@ -49,9 +28,6 @@ cleanup() {
     fi
     exit 0
 }
-
-# Call github-backup restore to restore all configs and data at startup
-./scripts/github-backup.sh restore
 
 echo "=== AUTHENTICATION YAPILANDIRILIYOR ==="
 # Python script to load, generate (if not provided), hash and modify config.yaml to configure username and password_hash
@@ -157,7 +133,7 @@ echo "✔ config.yaml doğru konumlarda (hem ~/.hermes/ hem de ~/.config/hermes/
 echo "=== HERMES AGENT BAŞLATILIYOR ==="
 echo "Dinlenen Port: $TARGET_PORT"
 PRE_START_ELAPSED=$(( $(date +%s) - SCRIPT_START_TS ))
-echo "ℹ Buraya kadar (DNS + yedek geri yükleme + auth ayarı) geçen süre: ${PRE_START_ELAPSED}sn"
+echo "ℹ Buraya kadar (DNS + auth ayarı) geçen süre: ${PRE_START_ELAPSED}sn"
 
 # Bazı Hermes sürümleri config yolunu çevre değişkeninden okur:
 export HERMES_CONFIG_PATH="$HOME/.hermes/config.yaml"
@@ -165,13 +141,10 @@ export HERMES_CONFIG_PATH="$HOME/.hermes/config.yaml"
 # Register trap for SIGTERM and SIGINT
 trap cleanup SIGTERM SIGINT
 
-# Start the periodic backup loop in background
-start_backup_loop
-
 # Hugging Face Spaces üzerinde çalışabilmesi için:
 # 1. Host 0.0.0.0 olmalı (dışarıdan erişim için).
 # 2. Arka planda çalıştırıp bash ile sinyal yakalıyoruz (trap).
-# 3. --no-open parametresi tarayıcıyı otomatik açmaya çalışmasını engeller.
+# 3. --no-open parametresi tarayıcıyı otomatik açmaya çalışmasını enveller.
 hermes dashboard --port "$TARGET_PORT" --host 0.0.0.0 --no-open &
 HERMES_PID=$!
 
