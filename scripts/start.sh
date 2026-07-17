@@ -18,120 +18,9 @@ export NODE_OPTIONS="${NODE_OPTIONS:+$NODE_OPTIONS }--require $HOME/app/scripts/
 export PYTHONPATH="$HOME/app/scripts${PYTHONPATH:+:$PYTHONPATH}"
 echo "✔ PYTHONPATH ayarlandı: $PYTHONPATH"
 
-# Helper function to perform git backup
-do_git_backup() {
-    if [ -d "$HOME/hermes_backup_git" ]; then
-        echo "Yedek dosyaları hazırlanıyor..."
-
-        # Sync .hermes to the git repo
-        mkdir -p "$HOME/hermes_backup_git/.hermes"
-
-        # Copy everything in ~/.hermes except lock files/sockets
-        cp -rf "$HOME/.hermes/"* "$HOME/hermes_backup_git/.hermes/" 2>/dev/null || true
-
-        # Remove large binary directories to stay within GitHub file size limits
-        rm -rf "$HOME/hermes_backup_git/.hermes/bin"
-        rm -rf "$HOME/hermes_backup_git/.hermes/node"
-        rm -rf "$HOME/hermes_backup_git/.hermes/hermes-agent"
-        rm -rf "$HOME/hermes_backup_git/.hermes/venv"
-        rm -rf "$HOME/hermes_backup_git/.hermes/node_modules"
-
-        # Sync config.yaml if it exists
-        if [ -f "$HOME/app/config.yaml" ]; then
-            cp -f "$HOME/app/config.yaml" "$HOME/hermes_backup_git/config.yaml"
-        fi
-
-        cd "$HOME/hermes_backup_git"
-
-        # Ensure git identity is set
-        git config user.name "Hermes Backup Bot"
-        git config user.email "hermes-backup-bot@users.noreply.github.com"
-
-        # Ensure .gitignore exists inside the repo to ignore large binaries
-        cat << 'EOF' > .gitignore
-# Large binary runtimes and environments
-.hermes/bin/
-.hermes/node/
-.hermes/hermes-agent/
-.hermes/venv/
-.hermes/node_modules/
-*.log
-*.tmp
-*.lock
-EOF
-
-        # Untrack any accidentally tracked large files/directories
-        git rm -r --cached .hermes/bin .hermes/node .hermes/hermes-agent .hermes/venv .hermes/node_modules 2>/dev/null || true
-
-        # Add changes
-        git add .
-
-        # Check if there are changes to commit
-        if ! git diff --quiet HEAD 2>/dev/null || ! git diff --cached --quiet 2>/dev/null; then
-            echo "Yeni değişiklikler algılandı. Yedek commit ediliyor..."
-            git commit -m "Automated backup: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
-
-            CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
-            if [ -z "$CURRENT_BRANCH" ] || [ "$CURRENT_BRANCH" = "HEAD" ]; then
-                CURRENT_BRANCH="main"
-                git checkout -b main 2>/dev/null || true
-            fi
-
-            echo "Yedek GitHub'a yükleniyor ($CURRENT_BRANCH)..."
-            # NOT: timeout + lowSpeedLimit/lowSpeedTime eklendi. Böylece yavaş/kopuk
-            # bir ağ bağlantısında push işlemi süresiz asılı kalıp başlangıcı
-            # bloke etmez; en fazla ~90 saniye içinde vazgeçer.
-            timeout 90 git -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=15 \
-                push origin "$CURRENT_BRANCH" > /tmp/git_push.log 2>&1
-            PUSH_STATUS=$?
-            if [ $PUSH_STATUS -eq 0 ]; then
-                echo "✔ Yedek başarıyla GitHub deposuna gönderildi."
-            elif [ $PUSH_STATUS -eq 124 ]; then
-                echo "❌ HATA: Yedek gönderimi zaman aşımına uğradı (90sn), atlanıyor."
-            else
-                echo "❌ HATA: Yedek GitHub'a gönderilemedi."
-                if [ -n "$GIT_TOKEN" ]; then
-                    sed "s/$GIT_TOKEN/[MASKED_TOKEN]/g" /tmp/git_push.log
-                else
-                    cat /tmp/git_push.log
-                fi
-            fi
-            rm -f /tmp/git_push.log
-        else
-            echo "Yedeklemede yeni değişiklik yok."
-        fi
-        cd "$HOME/app"
-    fi
-}
-
-# Periodic backup loop running in the background
-start_backup_loop() {
-    if [ -d "$HOME/hermes_backup_git" ]; then
-        echo "Periyodik yedekleme arka plan servisi başlatılıyor..."
-        (
-            # Wait 5 minutes before first backup
-            sleep 300
-            while true; do
-                echo "=== PERİYODİK YEDEKLEME BAŞLADI ==="
-                do_git_backup
-                sleep 1800
-            done
-        ) &
-        BACKUP_LOOP_PID=$!
-        echo "Yedekleme servis PID: $BACKUP_LOOP_PID"
-    fi
-}
-
-# Trap handler for graceful shutdown and final backup
+# Trap handler for graceful shutdown
 cleanup() {
     echo "=== ALINAN SİNYAL: GRACEFUL SHUTDOWN BAŞLATILIYOR ==="
-    if [ -n "$BACKUP_LOOP_PID" ]; then
-        kill "$BACKUP_LOOP_PID" 2>/dev/null || true
-    fi
-    if [ -d "$HOME/hermes_backup_git" ]; then
-        echo "Son kez yedek alınıyor ve GitHub'a yükleniyor..."
-        do_git_backup
-    fi
     if [ -n "$HERMES_PID" ]; then
         echo "Hermes durduruluyor..."
         kill -TERM "$HERMES_PID" 2>/dev/null || true
@@ -139,121 +28,6 @@ cleanup() {
     fi
     exit 0
 }
-
-# Safe tar.gz backup extraction helper to protect the app/ directory from being overwritten
-safe_extract_tar_backup() {
-    local TAR_FILE="$1"
-    if [ -f "$TAR_FILE" ]; then
-        echo "Yedek dosyası güvenli şekilde açılıyor: $TAR_FILE"
-        local TMP_DIR="/tmp/hermes_restore_tar"
-        rm -rf "$TMP_DIR"
-        mkdir -p "$TMP_DIR"
-
-        # Extract the tarball to the temp directory
-        tar -xzf "$TAR_FILE" -C "$TMP_DIR" 2>/dev/null || true
-
-        # Restore .hermes if it exists in the extracted files
-        if [ -d "$TMP_DIR/.hermes" ]; then
-            echo "Yedek .hermes verileri geri yükleniyor..."
-            mkdir -p "$HOME/.hermes"
-            cp -rf "$TMP_DIR/.hermes/"* "$HOME/.hermes/" 2>/dev/null || true
-        fi
-
-        # Restore config.yaml if it exists in the extracted files
-        if [ -f "$TMP_DIR/config.yaml" ]; then
-            echo "Yedek config.yaml geri yükleniyor..."
-            cp -f "$TMP_DIR/config.yaml" "$HOME/app/config.yaml"
-        elif [ -f "$TMP_DIR/app/config.yaml" ]; then
-            echo "Yedek config.yaml geri yükleniyor (app dizininden)..."
-            cp -f "$TMP_DIR/app/config.yaml" "$HOME/app/config.yaml"
-        fi
-
-        # Clean up temp directory
-        rm -rf "$TMP_DIR"
-        echo "✔ Yedek başarıyla açıldı, app dizini korundu."
-    fi
-}
-
-echo "=== VERİ GERİ YÜKLEME AŞAMASI (GITHUB BACKUP) ==="
-REPO_URL="${GITHUB_BACKUP_REPO:-$BACKUP_REPO}"
-GIT_TOKEN="${GITHUB_TOKEN:-$GH_TOKEN}"
-
-if [ -n "$REPO_URL" ]; then
-    echo "GitHub yedekleme aktif..."
-    AUTH_REPO_URL="$REPO_URL"
-    if [ -n "$GIT_TOKEN" ]; then
-        if [[ "$REPO_URL" =~ ^https:// ]]; then
-            CLEAN_URL="${REPO_URL#https://}"
-            AUTH_REPO_URL="https://${GIT_TOKEN}@${CLEAN_URL}"
-        else
-            AUTH_REPO_URL="https://${GIT_TOKEN}@${REPO_URL}"
-        fi
-    fi
-
-    BACKUP_GIT_DIR="$HOME/hermes_backup_git"
-    rm -rf "$BACKUP_GIT_DIR"
-
-    echo "Yedek deposu klonlanıyor..."
-    # NOT: Aşağıdaki üç ayar start süresinin tıkanmasını önlemek için eklendi:
-    #   - timeout 90            -> klonlama 90sn içinde bitmezse zorla iptal eder
-    #   - http.lowSpeedLimit/Time -> bağlantı çok yavaşsa (ör. HF Spaces ağ kısıtı)
-    #     15 saniye boyunca 1000 byte/sn altına düşerse bağlantıyı keser
-    #   - --single-branch       -> gereksiz branch/geçmiş verisini çekmeyi engeller
-    # Böylece backup deposu büyükse veya ağ sorunluysa hermes'in başlaması
-    # süresiz bloke olmaz.
-    CLONE_START_TS=$(date +%s)
-    timeout 90 git -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=15 \
-        clone --depth 1 --single-branch "$AUTH_REPO_URL" "$BACKUP_GIT_DIR" > /tmp/git_clone.log 2>&1
-    CLONE_STATUS=$?
-    CLONE_ELAPSED=$(( $(date +%s) - CLONE_START_TS ))
-    if [ $CLONE_STATUS -eq 0 ]; then
-        echo "✔ Yedek deposu başarıyla klonlandı. (${CLONE_ELAPSED}sn sürdü)"
-
-        # Configure git identity inside the cloned repo
-        cd "$BACKUP_GIT_DIR"
-        git config user.name "Hermes Backup Bot"
-        git config user.email "hermes-backup-bot@users.noreply.github.com"
-        cd "$HOME/app"
-
-        # Restore .hermes if it exists
-        if [ -d "$BACKUP_GIT_DIR/.hermes" ]; then
-            echo "Yedek veriler geri yükleniyor (.hermes)..."
-            mkdir -p "$HOME/.hermes"
-            cp -rf "$BACKUP_GIT_DIR/.hermes/"* "$HOME/.hermes/" 2>/dev/null || true
-            echo "✔ .hermes geri yüklendi."
-        fi
-
-        # Restore config.yaml if it exists
-        if [ -f "$BACKUP_GIT_DIR/config.yaml" ]; then
-            echo "Yedek config.yaml geri yükleniyor..."
-            cp -f "$BACKUP_GIT_DIR/config.yaml" "$HOME/app/config.yaml"
-            echo "✔ config.yaml geri yüklendi."
-        fi
-
-        # Backward compatibility with tar.gz backup
-        if [ -f "$BACKUP_GIT_DIR/hermes_backup.tar.gz" ]; then
-            safe_extract_tar_backup "$BACKUP_GIT_DIR/hermes_backup.tar.gz"
-        fi
-    elif [ $CLONE_STATUS -eq 124 ]; then
-        echo "❌ HATA: Yedek deposu klonlama zaman aşımına uğradı (90sn, ${CLONE_ELAPSED}sn sonra iptal edildi)."
-        echo "    Depo çok büyük olabilir (geçmiş commit'lerde .hermes/venv, .hermes/node_modules gibi"
-        echo "    büyük klasörler kalmış olabilir) ya da ağ bağlantısı yavaş/kısıtlı. Yedek geri yükleme"
-        echo "    atlanıyor, uygulama normal şekilde başlatılmaya devam ediyor."
-    else
-        echo "❌ HATA: Yedek deposu klonlanamadı. (${CLONE_ELAPSED}sn sonra, kod: $CLONE_STATUS)"
-        if [ -n "$GIT_TOKEN" ]; then
-            sed "s/$GIT_TOKEN/[MASKED_TOKEN]/g" /tmp/git_clone.log
-        else
-            cat /tmp/git_clone.log
-        fi
-    fi
-    rm -f /tmp/git_clone.log
-else
-    echo "Bilgilendirme: GITHUB_BACKUP_REPO tanımlı değil. GitHub yedekleme aktif edilmedi."
-    if [ -n "$HF_TOKEN" ] && [ -f "$HOME/app/hermes_backup.tar.gz" ]; then
-        safe_extract_tar_backup "$HOME/app/hermes_backup.tar.gz"
-    fi
-fi
 
 echo "=== AUTHENTICATION YAPILANDIRILIYOR ==="
 # Python script to load, generate (if not provided), hash and modify config.yaml to configure username and password_hash
@@ -359,7 +133,7 @@ echo "✔ config.yaml doğru konumlarda (hem ~/.hermes/ hem de ~/.config/hermes/
 echo "=== HERMES AGENT BAŞLATILIYOR ==="
 echo "Dinlenen Port: $TARGET_PORT"
 PRE_START_ELAPSED=$(( $(date +%s) - SCRIPT_START_TS ))
-echo "ℹ Buraya kadar (DNS + yedek geri yükleme + auth ayarı) geçen süre: ${PRE_START_ELAPSED}sn"
+echo "ℹ Buraya kadar (DNS + auth ayarı) geçen süre: ${PRE_START_ELAPSED}sn"
 
 # Bazı Hermes sürümleri config yolunu çevre değişkeninden okur:
 export HERMES_CONFIG_PATH="$HOME/.hermes/config.yaml"
@@ -367,13 +141,10 @@ export HERMES_CONFIG_PATH="$HOME/.hermes/config.yaml"
 # Register trap for SIGTERM and SIGINT
 trap cleanup SIGTERM SIGINT
 
-# Start the periodic backup loop in background
-start_backup_loop
-
 # Hugging Face Spaces üzerinde çalışabilmesi için:
 # 1. Host 0.0.0.0 olmalı (dışarıdan erişim için).
 # 2. Arka planda çalıştırıp bash ile sinyal yakalıyoruz (trap).
-# 3. --no-open parametresi tarayıcıyı otomatik açmaya çalışmasını engeller.
+# 3. --no-open parametresi tarayıcıyı otomatik açmaya çalışmasını enveller.
 hermes dashboard --port "$TARGET_PORT" --host 0.0.0.0 --no-open &
 HERMES_PID=$!
 
