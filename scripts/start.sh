@@ -18,15 +18,34 @@ export NODE_OPTIONS="${NODE_OPTIONS:+$NODE_OPTIONS }--require $HOME/app/scripts/
 export PYTHONPATH="$HOME/app/scripts${PYTHONPATH:+:$PYTHONPATH}"
 echo "✔ PYTHONPATH ayarlandı: $PYTHONPATH"
 
+echo "=== GITHUB YEDEK GERİ YÜKLEME BAŞLATILIYOR ==="
+# Başlangıçta github-backup scriptini çalıştırarak varsa yedeklerimizi geri yüklüyoruz.
+bash "$HOME/app/scripts/github-backup.sh" restore
+
 # Trap handler for graceful shutdown
 cleanup() {
     echo "=== ALINAN SİNYAL: GRACEFUL SHUTDOWN BAŞLATILIYOR ==="
+    if [ -n "$BACKUP_LOOP_PID" ]; then
+        echo "Yedekleme döngüsü durduruluyor..."
+        kill "$BACKUP_LOOP_PID" 2>/dev/null || true
+    fi
     if [ -n "$HERMES_PID" ]; then
         echo "Hermes durduruluyor..."
         kill -TERM "$HERMES_PID" 2>/dev/null || true
         wait "$HERMES_PID" 2>/dev/null || true
     fi
+    echo "=== KAPANMADAN ÖNCE SON YEDEKLEME YAPILIYOR ==="
+    bash "$HOME/app/scripts/github-backup.sh" backup
     exit 0
+}
+
+# Periyodik yedekleme döngüsü (Her 30 dakikada bir çalışır)
+backup_loop() {
+    while true; do
+        sleep 1800
+        echo "=== PERİYODİK YEDEKLEME BAŞLATILIYOR ==="
+        bash "$HOME/app/scripts/github-backup.sh" backup
+    done
 }
 
 echo "=== AUTHENTICATION YAPILANDIRILIYOR ==="
@@ -140,6 +159,11 @@ export HERMES_CONFIG_PATH="$HOME/.hermes/config.yaml"
 
 # Register trap for SIGTERM and SIGINT
 trap cleanup SIGTERM SIGINT
+
+# Periyodik yedekleme döngüsünü arka planda başlatıyoruz
+backup_loop &
+BACKUP_LOOP_PID=$!
+echo "Periyodik yedekleme döngüsü başlatıldı, PID: $BACKUP_LOOP_PID"
 
 # Hugging Face Spaces üzerinde çalışabilmesi için:
 # 1. Host 0.0.0.0 olmalı (dışarıdan erişim için).
