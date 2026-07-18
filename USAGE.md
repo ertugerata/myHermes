@@ -1,12 +1,12 @@
 # MyHermes Projesi - Detaylı Kullanım Kılavuzu (USAGE.md)
 
-Bu kılavuz, **Hermes Agent** web arayüzünün (Dashboard) Hugging Face Spaces veya yerel bir Docker ortamında nasıl kurulacağını, çalıştırılacağını, gelişmiş ağ (DNS) çözümlerini ve güvenlik yapılandırmalarını detaylandırmaktadır.
+Bu kılavuz, **Hermes Agent** web arayüzünün (Dashboard) Hugging Face Spaces veya yerel bir Docker ortamında nasıl kurulacağını, çalıştırılacağını, gelişmiş ağ (DNS) çözümlerini, güvenlik yapılandırmalarını ve yedekleme mekanizmasını detaylandırmaktadır.
 
 ---
 
 ## 🚀 Başlangıç ve Çalıştırma
 
-Bu proje, Hermes Agent Dashboard'u bir Docker konteyneri içinde barındırır. Hugging Face Spaces üzerinde sorunsuz ve yüksek performanslı çalışacak şekilde optimize edilmiştir.
+Bu proje, Hermes Agent Dashboard'u bir Docker konteyneri içinde barındırır. Hugging Face Spaces veya yerel konteyner ortamlarında sorunsuz, yüksek performanslı ve güvenli çalışacak şekilde optimize edilmiştir.
 
 ### Yerel Ortamda Docker ile Çalıştırma
 Yerel makinenizde test etmek veya çalıştırmak için aşağıdaki adımları takip edebilirsiniz:
@@ -25,23 +25,29 @@ Yerel makinenizde test etmek veya çalıştırmak için aşağıdaki adımları 
    ```
    Ardından tarayıcınızda `http://localhost:7860` adresine giderek giriş yapabilirsiniz.
 
+### 🔄 Sinyal Yakalama ve Kesintisiz Çalışma (Graceful Shutdown)
+Konteynerin Hugging Face Spaces veya Docker üzerinde beklenmedik şekilde aniden kapanmasını önlemek ve sistem sinyallerini düzgün yönetmek amacıyla, `hermes dashboard` komutu arka planda (`0.0.0.0` IP adresine bağlı olarak) çalıştırılır ve ön planda bir `wait` komutu ile beklenir.
+Bu sayede shell üzerinde bir sinyal yakalayıcı (trap) kurulmuştur. Konteyner durdurulurken `SIGTERM` veya `SIGINT` sinyalleri yakalanarak son durum güvenli bir şekilde yedeklenir ve süreç kontrollü (graceful) olarak sonlandırılır.
+
 ---
 
 ## 🔒 Güvenlik ve Dinamik Kimlik Doğrulama (Authentication)
 
-Dış dünyaya açık (kamusal IP'ye veya `0.0.0.0` adresine bağlanan) tüm Hermes Dashboard arayüzlerinde kimlik doğrulama yapılması zorunludur.
+Dış dünyaya açık (kamusal IP'ye veya `0.0.0.0` adresine bağlanan) tüm Hermes Dashboard arayüzlerinde kimlik doğrulama yapılması zorunludur. Geçerli bir kimlik doğrulama sağlayıcısı yapılandırılmadığı takdirde dashboard güvenlik amacıyla başlatılmayacaktır.
 
 > ⚠️ **Önemli Bilgi:** `--insecure` parametresi artık pasiftir (deprecated / no-op) ve dışarıya açık bağlantılarda kimlik doğrulamayı devre dışı bırakmaz. Kamusal bağlantılarda her zaman geçerli bir kimlik doğrulama sağlayıcısı bulunmalıdır. Bu nedenle, gereksiz yük oluşturmaması ve uyarı vermemesi amacıyla `scripts/start.sh` dosyasından tamamen kaldırılmıştır.
 
 ### 🛠️ Dinamik Kimlik Doğrulama Nasıl Çalışır?
 Konteyner her başlatıldığında `scripts/start.sh` dosyası devreye girerek kimlik doğrulamayı şu adımlarla dinamik olarak yapılandırır:
 
-1. **Şifre Algılama ve Hash'leme:**
+1. **Şifre Algılama, Hash'leme ve Ezme (Override):**
+   - Konteyner ortamında güvenlik sağlamak amacıyla, çevre değişkenleri üzerinden iletilen `HERMES_DASHBOARD_BASIC_AUTH_PASSWORD` veya `HERMES_DASHBOARD_BASIC_AUTH_PASSWORD_HASH` değerleri, `config.yaml` dosyasında önceden kayıtlı veya geri yüklenmiş olabilecek tüm eski şifreleri **her zaman ezer (explicitly override)**.
    - Eğer `HERMES_DASHBOARD_BASIC_AUTH_PASSWORD` çevre değişkeni tanımlanmışsa, bu şifre Hermes Agent'ın yerleşik `plugins.dashboard_auth.basic.hash_password` aracı kullanılarak güvenli bir şekilde `scrypt` algoritması ile hash'lenir ve `config.yaml` dosyasındaki `password_hash` alanına yazılır.
    - Eğer doğrudan `HERMES_DASHBOARD_BASIC_AUTH_PASSWORD_HASH` tanımlanmışsa, bu değer doğrudan kullanılır.
    - Eğer hiçbir şifre veya hash tanımlanmamışsa, sistem **otomatik olarak 12 karakterli güvenli bir şifre üretir**, bunu hash'ler ve başlangıç loglarında net bir şekilde görüntüler.
+
 2. **Eklenti Aktivasyonu:**
-   - Kimlik doğrulama hatalarını önlemek için `config.yaml` içindeki `plugins.disabled` listesinde `basic` eklentisi varsa kaldırılır, `plugins.enabled` listesine ise otomatik olarak eklenir.
+   - Kimlik doğrulama sağlayıcısının kayıt hatası vermesini engellemek için `config.yaml` dosyasında `basic` eklentisi (basic auth) otomatik olarak aktifleştirilir. Bu doğrultuda eklenti `plugins.disabled` listesinde varsa temizlenir ve `plugins.enabled` listesine eklenir.
 
 ---
 
@@ -65,17 +71,24 @@ Bu sorunu aşmak için projeye **DNS-over-HTTPS (DoH)** tabanlı dinamik bir byp
 
 ## 💾 GitHub ile Otomatik Yedekleme ve Geri Yükleme (Backup & Restore)
 
-Uygulamanın oturum geçmişi, veritabanı ve ayarları (`.hermes` dizini ve `config.yaml` dosyası) Hugging Face Spaces gibi geçici (ephemeral) ortamlarda konteyner sıfırlandığında kaybolabilir. Bunu önlemek için **GitHub tabanlı dinamik yedekleme ve geri yükleme** mekanizması eklenmiştir.
+Uygulamanın oturum geçmişi, veritabanı ve ayarları (`.hermes` dizini ve `config.yaml` dosyası) Hugging Face Spaces gibi geçici (ephemeral) ortamlarda konteyner sıfırlandığında kaybolabilir. Bunu önlemek için **GitHub tabanlı dinamik yedekleme ve geri yükleme** mekanizması (`scripts/github-backup.sh`) eklenmiştir.
 
-### ⚙️ Çalışma Mantığı:
+### ⚙️ Çalışma Mantığı ve Gelişmiş Güvenlik:
 1. **Geri Yükleme (Restore - Başlangıçta):**
    - Konteyner başlatılırken `GITHUB_BACKUP_REPO` tanımlı ise, ilgili depo otomatik olarak geçici bir dizine klonlanır.
    - Depo içerisindeki `.hermes/` dizini ve `config.yaml` dosyası, uygulamanın çalışacağı ana dizine kopyalanarak verileriniz kaldığı yerden geri yüklenir.
+   - **Güvenli Geri Yükleme (Safe Legacy Tar Extract):** Geri yükleme sırasında eski tar.gz formatındaki (`hermes_backup.tar.gz`) yedekler de desteklenir. Aktif çalışma ortamındaki kritik dosyaların (özellikle `/home/user/app/scripts/` altındaki özel ağ yamalarının ve scriptlerin) üzerine yanlışlıkla yazılmasını (overwriting) önlemek için; tar.gz arşivi önce güvenli geçici bir dizine açılır, ardından yalnızca `.hermes` veri klasörü ile `config.yaml` ayar dosyası hedef dizinlerine seçici olarak kopyalanır.
+
 2. **Periyodik Yedekleme (Backup - Çalışma Esnasında):**
    - Arka planda çalışan bir servis, her **30 dakikada bir** en güncel `.hermes` verilerini ve `config.yaml` dosyasını kontrol eder.
    - Herhangi bir değişiklik algılanırsa, değişiklikler otomatik olarak commit edilip GitHub deponuza güvenli bir şekilde gönderilir (push edilir).
+
 3. **Kapatma Esnasında Yedekleme (Graceful Shutdown):**
-   - Hugging Face Spaces konteyneri durdurulduğunda (uyku moduna geçiş, yeniden başlatma vb.), sistem `SIGTERM` sinyalini yakalar ve kapanmadan önce **en güncel durumu son bir kez GitHub deposuna push eder**.
+   - Hugging Face Spaces konteyneri durdurulduğunda (uyku moduna geçiş, yeniden başlatma vb.), sistem `SIGTERM` veya `SIGINT` sinyalini yakalar ve kapanmadan önce **en güncel durumu son bir kez GitHub deposuna push eder**.
+
+4. **Kalıcı Loglama ve Geçmiş Takibi:**
+   - Yedekleme ve geri yükleme işlemleri kullanıcı tarafından kolayca takip edilebilir. Tüm adımlar, zaman damgalı durum logları (`INFO`, `SUCCESS`, `WARNING`, `ERROR`) olarak standart çıktıya (stdout) basılır ve kalıcı olarak `$HOME/app/backup.log` dosyasına kaydedilir.
+   - Yedekleme geçmişinin kaybolmaması için `backup.log` dosyası, yedekleme ve geri yükleme adımlarında çalışma dizini ile GitHub deposu arasında karşılıklı olarak kopyalanarak korunur.
 
 ### 🛠️ Kurulum Adımları:
 1. **Yedekleme Deposu Oluşturun:**
@@ -94,6 +107,17 @@ Uygulamanın oturum geçmişi, veritabanı ve ayarları (`.hermes` dizini ve `co
 
 ---
 
+## 🛠️ Sorun Giderme ve Log Dosyaları (Troubleshooting)
+
+Hugging Face Spaces üzerinde başlangıç gecikmelerini, yedekleme hatalarını veya bağlantı sorunlarını gidermek için sistemdeki kritik geçici log dosyalarını inceleyebilirsiniz:
+
+* **`/tmp/git_clone.log`**: Başlangıçta yedek deposunun GitHub'dan klonlanması sırasında oluşan tüm hata ve çıktıları içerir.
+* **`/tmp/git_push.log`**: Yedeklerin periyodik veya graceful shutdown sırasında GitHub deposuna push edilmesi esnasındaki tüm detayları barındırır.
+* **`/tmp/dns-resolved.json`**: DNS-over-HTTPS (DoH) ile çözümlenmiş güncel alan adı / IP adres eşleştirmelerini gösterir.
+* **`backup.log` (veya `$HOME/app/backup.log`)**: Tüm yedekleme ve geri yükleme geçmişini etiketli ve zaman damgalı (`INFO`, `SUCCESS`, `WARNING`, `ERROR`) olarak listeler.
+
+---
+
 ## 🔑 Çevre Değişkenleri (Environment Variables) ve Sırlar (Secrets)
 
 Uygulamanın çalışması için aşağıdaki değişkenler kullanılmaktadır. Bunları Hugging Face Spaces ayarlarında **Variables** veya **Secrets** olarak tanımlayabilirsiniz.
@@ -103,7 +127,7 @@ Uygulamanın çalışması için aşağıdaki değişkenler kullanılmaktadır. 
 | Değişken Adı | Türü | Varsayılan | Açıklama |
 | :--- | :--- | :--- | :--- |
 | `HERMES_DASHBOARD_BASIC_AUTH_USERNAME` | Değişken/Sır | `admin` | Dashboard arayüzüne giriş kullanıcı adı. |
-| `HERMES_DASHBOARD_BASIC_AUTH_PASSWORD` | Sır (Secret) | *(Otomatik Üretilir)* | Giriş şifresi. Belirtilmezse, başlangıçta rastgele üretilir ve loglara basılır. |
+| `HERMES_DASHBOARD_BASIC_AUTH_PASSWORD` | Sır (Secret) | *(Otomatik Üretilir)* | Giriş şifresi. Belirtilmezse, başlangıçta rastgele üretilir ve loglara basılır. Bu değer `config.yaml` içindeki eski şifreleri ezer. |
 | `HERMES_DASHBOARD_BASIC_AUTH_PASSWORD_HASH` | Sır (Secret) | *(Boş)* | Şifrenin düz metin olarak girilmesini istemiyorsanız, önceden üretilmiş `scrypt` hash değerini buraya tanımlayabilirsiniz. |
 
 ### 2. Sistem ve Altyapı Değişkenleri
@@ -111,7 +135,7 @@ Uygulamanın çalışması için aşağıdaki değişkenler kullanılmaktadır. 
 | Değişken Adı | Türü | Varsayılan | Açıklama |
 | :--- | :--- | :--- | :--- |
 | `PORT` | Değişken | `7860` | Uygulamanın dinleyeceği port. Hugging Face Spaces bunu otomatik ayarlar. |
-| `HF_TOKEN` | Sır (Secret) | *(Boş)* | Hugging Face API erişim token'ı. Geri yükleme (`tar.gz`) doğrulaması ve model API erişimleri için kullanılır. |
+| `HF_TOKEN` | Sır (Secret) | *(Boş)* | Hugging Face API erişim token'ı. Geri yükleme doğrulaması ve model API erişimleri için kullanılır. |
 
 ### 3. Yapay Zeka (AI) API Anahtarları
 Kullanmak istediğiniz modellere göre ilgili sağlayıcıların API anahtarlarını **Secret** olarak ekleyin:
