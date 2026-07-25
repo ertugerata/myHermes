@@ -4,6 +4,9 @@ USER root
 
 # Gerekli ek paketleri kuruyoruz
 RUN apt-get update && apt-get install -y \
+    build-essential \
+    python3-dev \
+    libffi-dev \
     git \
     curl \
     tar \
