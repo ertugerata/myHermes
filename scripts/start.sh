@@ -1,7 +1,34 @@
 #!/bin/bash
+set -uo pipefail
 
 SCRIPT_START_TS=$(date +%s)
 TARGET_PORT=${PORT:-7860}
+
+# WORKDIR ($HOME/app) her zaman CMD'nin çalıştığı dizin olduğu için config.yaml'ın
+# konumu tektir; artık ne bash ne de Python tarafında ayrı "önce şurayı dene,
+# olmazsa burayı dene" mantığına gerek yok. Tek kaynak burada tanımlanır ve
+# Python bloğuna CONFIG_SRC ortam değişkeniyle aktarılır.
+CONFIG_SRC="$HOME/app/config.yaml"
+export CONFIG_SRC
+
+# Trap'i en başta kaydediyoruz ki restore/backup_loop başlamadan önce gelen
+# bir SIGTERM/SIGINT'te de düzgün kapanabilelim.
+cleanup() {
+    echo "=== ALINAN SİNYAL: GRACEFUL SHUTDOWN BAŞLATILIYOR ==="
+    if [ -n "${BACKUP_LOOP_PID:-}" ]; then
+        echo "Yedekleme döngüsü durduruluyor..."
+        kill "$BACKUP_LOOP_PID" 2>/dev/null || true
+    fi
+    if [ -n "${HERMES_PID:-}" ]; then
+        echo "Hermes durduruluyor..."
+        kill -TERM "$HERMES_PID" 2>/dev/null || true
+        wait "$HERMES_PID" 2>/dev/null || true
+    fi
+    echo "=== KAPANMADAN ÖNCE SON YEDEKLEME YAPILIYOR ==="
+    bash "$HOME/app/scripts/github-backup.sh" backup
+    exit 0
+}
+trap cleanup SIGTERM SIGINT
 
 echo "=== DNS HAZIRLIĞI VE ÖNÇÖZÜMLEME ==="
 # Runs dns-resolve.py to pre-resolve blocked domains via DNS-over-HTTPS.
@@ -18,26 +45,15 @@ export NODE_OPTIONS="${NODE_OPTIONS:+$NODE_OPTIONS }--require $HOME/app/scripts/
 export PYTHONPATH="$HOME/app/scripts${PYTHONPATH:+:$PYTHONPATH}"
 echo "✔ PYTHONPATH ayarlandı: $PYTHONPATH"
 
+# github-backup.sh GitHub'a (ağ) eriştiği için, DNS ön-çözümlemesinin bitmesini
+# bekliyoruz — aksi halde blocked domain'ler henüz çözülmemiş olabilir.
+echo "DNS ön-çözümlemesi bekleniyor..."
+wait "$DNS_PID"
+echo "✔ DNS ön-çözümlemesi tamamlandı."
+
 echo "=== GITHUB YEDEK GERİ YÜKLEME BAŞLATILIYOR ==="
 # Başlangıçta github-backup scriptini çalıştırarak varsa yedeklerimizi geri yüklüyoruz.
 bash "$HOME/app/scripts/github-backup.sh" restore
-
-# Trap handler for graceful shutdown
-cleanup() {
-    echo "=== ALINAN SİNYAL: GRACEFUL SHUTDOWN BAŞLATILIYOR ==="
-    if [ -n "$BACKUP_LOOP_PID" ]; then
-        echo "Yedekleme döngüsü durduruluyor..."
-        kill "$BACKUP_LOOP_PID" 2>/dev/null || true
-    fi
-    if [ -n "$HERMES_PID" ]; then
-        echo "Hermes durduruluyor..."
-        kill -TERM "$HERMES_PID" 2>/dev/null || true
-        wait "$HERMES_PID" 2>/dev/null || true
-    fi
-    echo "=== KAPANMADAN ÖNCE SON YEDEKLEME YAPILIYOR ==="
-    bash "$HOME/app/scripts/github-backup.sh" backup
-    exit 0
-}
 
 # Periyodik yedekleme döngüsü (Her 30 dakikada bir çalışır)
 backup_loop() {
@@ -56,9 +72,7 @@ sys.path.append(os.path.expanduser('~/.hermes/hermes-agent'))
 from plugins.dashboard_auth.basic import hash_password
 import secrets
 
-config_path = os.path.expanduser('~/app/config.yaml')
-if not os.path.exists(config_path):
-    config_path = 'config.yaml'
+config_path = os.environ['CONFIG_SRC']
 with open(config_path, 'r') as f:
     cfg = yaml.safe_load(f) or {}
 
@@ -129,24 +143,21 @@ if grep -q "=== GENERATED_PASSWORD_START ===" auth_config_output.log; then
     echo "🔑 DEFAULT DASHBOARD CREDENTIALS GENERATED:"
     echo "   Username: $GEN_USER"
     echo "   Password: $GEN_PWD"
+    echo "   (Bu parola sadece konsol loguna yazılır; kalıcı bir volume"
+    echo "    kullanılmıyorsa her yeniden başlatmada YENİDEN üretilir.)"
     echo "========================================================="
     echo ""
 fi
 rm -f auth_config_output.log
 
-echo "=== CONFIG DOSYASI DOĞRULANIYOR ==="
-# Konteyner ayağa kalkarken dosyanın tam konumunu ekrana basalım (Log takibi için)
-CONFIG_SRC="$HOME/app/config.yaml"
-if [ ! -f "$CONFIG_SRC" ]; then
-    CONFIG_SRC="config.yaml"
-fi
-
-mkdir -p "$HOME/.config/hermes"
-cp "$CONFIG_SRC" "$HOME/.config/hermes/config.yaml"
-
-# Hermes default path matches HERMES_HOME (~/.hermes). Let's copy it there.
-mkdir -p "$HOME/.hermes"
-cp "$CONFIG_SRC" "$HOME/.hermes/config.yaml"
+echo "=== CONFIG DOSYASI DAĞITILIYOR ==="
+# Auth bilgisiyle güncellenen tek config.yaml (CONFIG_SRC), hermes-agent'ın
+# aradığı iki olası konuma da kopyalanır. Hangi konum kullanılırsa kullanılsın
+# içerik aynı kaynaktan geldiği için tekrar/uyuşmazlık riski yok.
+for target_dir in "$HOME/.config/hermes" "$HOME/.hermes"; do
+    mkdir -p "$target_dir"
+    cp "$CONFIG_SRC" "$target_dir/config.yaml"
+done
 echo "✔ config.yaml doğru konumlarda (hem ~/.hermes/ hem de ~/.config/hermes/) hazır."
 
 echo "=== HERMES AGENT BAŞLATILIYOR ==="
@@ -157,9 +168,6 @@ echo "ℹ Buraya kadar (DNS + auth ayarı) geçen süre: ${PRE_START_ELAPSED}sn"
 # Bazı Hermes sürümleri config yolunu çevre değişkeninden okur:
 export HERMES_CONFIG_PATH="$HOME/.hermes/config.yaml"
 
-# Register trap for SIGTERM and SIGINT
-trap cleanup SIGTERM SIGINT
-
 # Periyodik yedekleme döngüsünü arka planda başlatıyoruz
 backup_loop &
 BACKUP_LOOP_PID=$!
@@ -168,7 +176,7 @@ echo "Periyodik yedekleme döngüsü başlatıldı, PID: $BACKUP_LOOP_PID"
 # Hugging Face Spaces üzerinde çalışabilmesi için:
 # 1. Host 0.0.0.0 olmalı (dışarıdan erişim için).
 # 2. Arka planda çalıştırıp bash ile sinyal yakalıyoruz (trap).
-# 3. --no-open parametresi tarayıcıyı otomatik açmaya çalışmasını enveller.
+# 3. --no-open parametresi tarayıcıyı otomatik açmaya çalışmasını engeller.
 hermes dashboard --port "$TARGET_PORT" --host 0.0.0.0 --no-open &
 HERMES_PID=$!
 
