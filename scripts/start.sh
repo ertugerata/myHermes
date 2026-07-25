@@ -4,6 +4,15 @@ set -uo pipefail
 SCRIPT_START_TS=$(date +%s)
 TARGET_PORT=${PORT:-7860}
 
+# Save backup environment variables to a secure file so manual executions from terminal/subprocesses have access to them
+cat << EOF > "$HOME/.backup_env"
+export GITHUB_BACKUP_REPO="${GITHUB_BACKUP_REPO:-${BACKUP_REPO:-}}"
+export GITHUB_TOKEN="${GITHUB_TOKEN:-${GH_TOKEN:-}}"
+export BACKUP_REPO="${BACKUP_REPO:-${GITHUB_BACKUP_REPO:-}}"
+export GH_TOKEN="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
+EOF
+chmod 600 "$HOME/.backup_env"
+
 # WORKDIR ($HOME/app) her zaman CMD'nin çalıştığı dizin olduğu için config.yaml'ın
 # konumu tektir; artık ne bash ne de Python tarafında ayrı "önce şurayı dene,
 # olmazsa burayı dene" mantığına gerek yok. Tek kaynak burada tanımlanır ve
@@ -55,10 +64,25 @@ echo "=== GITHUB YEDEK GERİ YÜKLEME BAŞLATILIYOR ==="
 # Başlangıçta github-backup scriptini çalıştırarak varsa yedeklerimizi geri yüklüyoruz.
 bash "$HOME/app/scripts/github-backup.sh" restore
 
-# Periyodik yedekleme döngüsü (Her 30 dakikada bir çalışır)
+# Periyodik yedekleme döngüsü (Varsayılan olarak 3 saatte bir çalışır, istenirse BACKUP_INTERVAL ile değiştirilebilir veya kapatılabilir)
 backup_loop() {
+    # Varsayılan 3 saat (10800 saniye). BACKUP_INTERVAL saniye cinsinden veya 'disabled'/'0'/'false' olabilir.
+    local INTERVAL="${BACKUP_INTERVAL:-10800}"
+
+    if [ "$INTERVAL" = "disabled" ] || [ "$INTERVAL" = "0" ] || [ "$INTERVAL" = "false" ]; then
+        echo "ℹ Periyodik yedekleme devre dışı bırakıldı. Sadece manuel veya graceful shutdown sırasında yedeklenecek."
+        return 0
+    fi
+
+    # Sayısal değer olup olmadığını kontrol edelim
+    if ! [[ "$INTERVAL" =~ ^[0-9]+$ ]]; then
+        echo "⚠️ Geçersiz BACKUP_INTERVAL değeri ('$INTERVAL'). Varsayılan 3 saat (10800 sn) kullanılacak."
+        INTERVAL=10800
+    fi
+
+    echo "ℹ Periyodik yedekleme her $INTERVAL saniyede bir çalışacak şekilde ayarlandı."
     while true; do
-        sleep 1800
+        sleep "$INTERVAL"
         echo "=== PERİYODİK YEDEKLEME BAŞLATILIYOR ==="
         bash "$HOME/app/scripts/github-backup.sh" backup
     done

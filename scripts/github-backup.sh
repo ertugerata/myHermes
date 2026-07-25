@@ -3,6 +3,11 @@
 # GitHub Backup and Restore Script for Hermes Agent
 # This script handles backing up ~/.hermes and config.yaml to a GitHub repository.
 
+# Load environment variables saved during startup if running manually in a raw shell
+if [ -f "$HOME/.backup_env" ]; then
+    source "$HOME/.backup_env"
+fi
+
 REPO_URL="${GITHUB_BACKUP_REPO:-$BACKUP_REPO}"
 GIT_TOKEN="${GITHUB_TOKEN:-$GH_TOKEN}"
 BACKUP_GIT_DIR="$HOME/hermes_backup_git"
@@ -54,6 +59,10 @@ do_git_backup() {
     if [ -z "$REPO_URL" ]; then
         write_user_log "WARNING" "Yedekleme işlemi atlandı: GITHUB_BACKUP_REPO tanımlı değil."
         return 0
+    fi
+
+    if [ -z "$GIT_TOKEN" ]; then
+        write_user_log "WARNING" "⚠️ GITHUB_TOKEN (veya GH_TOKEN) ortam değişkeni tanımlı değil! GitHub terminal üzerinden kullanıcı adı ve parola/token isteyebilir."
     fi
 
     if [ ! -d "$BACKUP_GIT_DIR" ]; then
@@ -164,6 +173,10 @@ do_git_restore() {
             safe_extract_tar_backup "$HOME/app/hermes_backup.tar.gz"
         fi
         return 0
+    fi
+
+    if [ -z "$GIT_TOKEN" ]; then
+        write_user_log "WARNING" "⚠️ GITHUB_TOKEN (veya GH_TOKEN) ortam değişkeni tanımlı değil! GitHub terminal üzerinden kullanıcı adı ve parola/token isteyebilir."
     fi
 
     local CLEAN_URL="$REPO_URL"
