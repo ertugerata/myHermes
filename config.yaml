@@ -456,7 +456,7 @@ security:
   allow_private_urls: false
   redact_secrets: true
   tirith_enabled: true
-  tirith_fail_open: true
+  tirith_fail_open: false
   tirith_path: tirith
   tirith_timeout: 5
   website_blocklist:

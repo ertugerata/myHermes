@@ -120,9 +120,21 @@ EOF
             git checkout -b main 2>/dev/null || true
         fi
         
+        local AUTH_HEADER=""
+        if [ -n "$GIT_TOKEN" ]; then
+            local B64_TOKEN=$(echo -n "x-access-token:$GIT_TOKEN" | base64 | tr -d '\n\r')
+            AUTH_HEADER="Authorization: Basic $B64_TOKEN"
+        fi
+
         write_user_log "INFO" "Yedek GitHub'a yükleniyor ($CURRENT_BRANCH)..."
-        timeout 90 git -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=15 \
-            push origin "$CURRENT_BRANCH" > /tmp/git_push.log 2>&1
+        if [ -n "$AUTH_HEADER" ]; then
+            timeout 90 git -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=15 \
+                -c http.extraHeader="$AUTH_HEADER" \
+                push origin "$CURRENT_BRANCH" > /tmp/git_push.log 2>&1
+        else
+            timeout 90 git -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=15 \
+                push origin "$CURRENT_BRANCH" > /tmp/git_push.log 2>&1
+        fi
         PUSH_STATUS=$?
         if [ $PUSH_STATUS -eq 0 ]; then
             write_user_log "SUCCESS" "Yedek başarıyla GitHub deposuna gönderildi."
@@ -154,29 +166,40 @@ do_git_restore() {
         return 0
     fi
 
-    AUTH_REPO_URL="$REPO_URL"
-    MASKED_REPO_URL="$REPO_URL"
+    local CLEAN_URL="$REPO_URL"
+    if [[ "$REPO_URL" =~ ^https:// ]]; then
+        CLEAN_URL=$(echo "$REPO_URL" | sed -E 's|https://[^@]+@|https://|')
+    else
+        local NO_CRED_URL=$(echo "$REPO_URL" | sed -E 's|[^@]+@||')
+        CLEAN_URL="https://${NO_CRED_URL}"
+    fi
+
+    local AUTH_HEADER=""
     if [ -n "$GIT_TOKEN" ]; then
-        if [[ "$REPO_URL" =~ ^https:// ]]; then
-            CLEAN_URL="${REPO_URL#https://}"
-            AUTH_REPO_URL="https://${GIT_TOKEN}@${CLEAN_URL}"
-            MASKED_REPO_URL="https://[MASKED_TOKEN]@${CLEAN_URL}"
-        else
-            AUTH_REPO_URL="https://${GIT_TOKEN}@${REPO_URL}"
-            MASKED_REPO_URL="https://[MASKED_TOKEN]@${REPO_URL}"
-        fi
+        local B64_TOKEN=$(echo -n "x-access-token:$GIT_TOKEN" | base64 | tr -d '\n\r')
+        AUTH_HEADER="Authorization: Basic $B64_TOKEN"
     fi
 
     rm -rf "$BACKUP_GIT_DIR"
-    write_user_log "INFO" "Yedek deposu klonlanıyor: $MASKED_REPO_URL"
+    write_user_log "INFO" "Yedek deposu klonlanıyor: $CLEAN_URL"
     CLONE_START_TS=$(date +%s)
-    timeout 90 git -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=15 \
-        clone --depth 1 --single-branch "$AUTH_REPO_URL" "$BACKUP_GIT_DIR" > /tmp/git_clone.log 2>&1
+
+    if [ -n "$AUTH_HEADER" ]; then
+        timeout 90 git -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=15 \
+            -c http.extraHeader="$AUTH_HEADER" \
+            clone --depth 1 --single-branch "$CLEAN_URL" "$BACKUP_GIT_DIR" > /tmp/git_clone.log 2>&1
+    else
+        timeout 90 git -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=15 \
+            clone --depth 1 --single-branch "$CLEAN_URL" "$BACKUP_GIT_DIR" > /tmp/git_clone.log 2>&1
+    fi
     CLONE_STATUS=$?
     CLONE_ELAPSED=$(( $(date +%s) - CLONE_START_TS ))
 
     if [ $CLONE_STATUS -eq 0 ]; then
         write_user_log "SUCCESS" "Yedek deposu başarıyla klonlandı. (${CLONE_ELAPSED}sn sürdü)"
+
+        # Ensure that no temporary extraHeader config is written to disk
+        git -C "$BACKUP_GIT_DIR" config --unset http.extraHeader 2>/dev/null || true
 
         # Configure git identity inside the cloned repo
         cd "$BACKUP_GIT_DIR" || return 1
