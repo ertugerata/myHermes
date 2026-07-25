@@ -3,6 +3,12 @@
 SCRIPT_START_TS=$(date +%s)
 TARGET_PORT=${PORT:-7860}
 
+# Ensure PATH and home directories are correctly configured
+export PATH="/opt/hermes/bin:/opt/hermes/.venv/bin:$HOME/.local/bin:$PATH"
+export HERMES_HOME="$HOME/.hermes"
+export HERMES_WRITE_SAFE_ROOT="$HOME/.hermes"
+export HERMES_LAZY_INSTALL_TARGET="$HOME/.hermes/lazy-packages"
+
 echo "=== DNS HAZIRLIĞI VE ÖNÇÖZÜMLEME ==="
 # Runs dns-resolve.py to pre-resolve blocked domains via DNS-over-HTTPS.
 # It will write resolved mappings to /tmp/dns-resolved.json
@@ -49,10 +55,22 @@ backup_loop() {
 }
 
 echo "=== AUTHENTICATION YAPILANDIRILIYOR ==="
+# Determine Python binary path dynamically
+if [ -f "/opt/hermes/.venv/bin/python" ]; then
+    HERMES_PYTHON="/opt/hermes/.venv/bin/python"
+elif [ -f "$HOME/.hermes/hermes-agent/venv/bin/python" ]; then
+    HERMES_PYTHON="$HOME/.hermes/hermes-agent/venv/bin/python"
+else
+    HERMES_PYTHON="python3"
+fi
+
 # Python script to load, generate (if not provided), hash and modify config.yaml to configure username and password_hash
-"$HOME/.hermes/hermes-agent/venv/bin/python" -c "
+"$HERMES_PYTHON" -c "
 import os, sys, yaml
-sys.path.append(os.path.expanduser('~/.hermes/hermes-agent'))
+if os.path.exists(os.path.expanduser('~/.hermes/hermes-agent')):
+    sys.path.append(os.path.expanduser('~/.hermes/hermes-agent'))
+elif os.path.exists('/opt/hermes'):
+    sys.path.append('/opt/hermes')
 from plugins.dashboard_auth.basic import hash_password
 import secrets
 
