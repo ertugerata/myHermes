@@ -392,9 +392,9 @@ memory:
   user_profile_enabled: true
   write_approval: false
 model:
-  base_url: https://router.huggingface.co/v1
-  default: google/gemma-4-31B-it
-  provider: huggingface
+  base_url: ''
+  default: nvidia/nemotron-3-ultra-550b-a55b:free
+  provider: openrouter
 model_catalog:
   enabled: true
   ttl_hours: 1
