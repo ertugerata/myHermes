@@ -55,10 +55,10 @@ echo "=== GITHUB YEDEK GERİ YÜKLEME BAŞLATILIYOR ==="
 # Başlangıçta github-backup scriptini çalıştırarak varsa yedeklerimizi geri yüklüyoruz.
 bash "$HOME/app/scripts/github-backup.sh" restore
 
-# Periyodik yedekleme döngüsü (Her 30 dakikada bir çalışır)
+# Periyodik yedekleme döngüsü (Her 2 saatte bir çalışır)
 backup_loop() {
     while true; do
-        sleep 1800
+        sleep 7200
         echo "=== PERİYODİK YEDEKLEME BAŞLATILIYOR ==="
         bash "$HOME/app/scripts/github-backup.sh" backup
     done
