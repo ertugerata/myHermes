@@ -1,6 +1,6 @@
 # MyHermes Projesi - Detaylı Kullanım Kılavuzu (USAGE.md)
 
-Bu kılavuz, **Hermes Agent** web arayüzünün (Dashboard) Hugging Face Spaces veya yerel bir Docker ortamında nasıl kurulacağını, çalıştırılacağını, gelişmiş ağ (DNS) çözümlerini, güvenlik yapılandırmalarını ve yedekleme mekanizmasını detaylandırmaktadır.
+Bu kılavuz, **Hermes Agent** web arayüzünün (Dashboard) Hugging Face Spaces veya yerel bir Docker ortamında nasıl kurulacağını, çalıştırılacağını, gelişmiş ağ (DNS) çözümlerini, güvenlik yapılandırmalarını, yedekleme mekanizmasını ve **gerekli API anahtarlarının nasıl tanımlanacağını** detaylandırmaktadır.
 
 ---
 
@@ -80,7 +80,7 @@ Uygulamanın oturum geçmişi, veritabanı ve ayarları (`.hermes` dizini ve `co
    - **Güvenli Geri Yükleme (Safe Legacy Tar Extract):** Geri yükleme sırasında eski tar.gz formatındaki (`hermes_backup.tar.gz`) yedekler de desteklenir. Aktif çalışma ortamındaki kritik dosyaların (özellikle `/home/user/app/scripts/` altındaki özel ağ yamalarının ve scriptlerin) üzerine yanlışlıkla yazılmasını (overwriting) önlemek için; tar.gz arşivi önce güvenli geçici bir dizine açılır, ardından yalnızca `.hermes` veri klasörü ile `config.yaml` ayar dosyası hedef dizinlerine seçici olarak kopyalanır.
 
 2. **Periyodik Yedekleme (Backup - Çalışma Esnasında):**
-   - Arka planda çalışan bir servis, her **30 dakikada bir** en güncel `.hermes` verilerini ve `config.yaml` dosyasını kontrol eder.
+   - Arka planda çalışan bir servis, her **2 saatte bir** (varsayılan olarak) en güncel `.hermes` verilerini ve `config.yaml` dosyasını kontrol eder.
    - Herhangi bir değişiklik algılanırsa, değişiklikler otomatik olarak commit edilip GitHub deponuza güvenli bir şekilde gönderilir (push edilir).
 
 3. **Kapatma Esnasında Yedekleme (Graceful Shutdown):**
@@ -151,6 +151,95 @@ Kullanmak istediğiniz modellere göre ilgili sağlayıcıların API anahtarlar�
 | :--- | :--- | :--- | :--- |
 | `GITHUB_BACKUP_REPO` | Değişken/Sır | *(Boş)* | Yedeklerin saklanacağı GitHub deposunun adresi (örn. `github.com/kullanici/hermes-yedek` veya `https://github.com/kullanici/hermes-yedek.git`). |
 | `GITHUB_TOKEN` | Sır (Secret) | *(Boş)* | GitHub deposuna yazma yetkisi olan kişisel erişim token'ı (Personal Access Token - PAT). Yedeklerin depoya push edilebilmesi için gereklidir. |
+
+---
+
+## 🗝️ API Anahtarları ve Detaylı Tanımlama Rehberi
+
+Hermes Agent'ın yapay zeka modellerini çalıştırabilmesi, web taraması yapabilmesi ve otomatik yedekleme alabilmesi için çeşitli API anahtarlarına ihtiyacı vardır. Bu anahtarların her birinin görevi ve nasıl tanımlanacağı aşağıda detaylıca açıklanmıştır.
+
+### 📋 Desteklenen API Anahtarları ve Görevleri
+
+| API Anahtarı Değişkeni | Sağlayıcı / Servis | Açıklama ve Kullanım Amacı |
+| :--- | :--- | :--- |
+| `OPENROUTER_API_KEY` | **OpenRouter** | **En Kritik Anahtar!** Hermes Agent varsayılan olarak `nvidia/nemotron-3-ultra-550b-a55b:free` modelini OpenRouter üzerinden kullanır. Ayrıca yüzlerce açık kaynaklı ve ticari modele tek bir anahtar ile erişim sağlar. |
+| `OPENAI_API_KEY` | **OpenAI** | `gpt-4o`, `gpt-4o-mini`, `o1`, `o3-mini` vb. resmi OpenAI modellerini doğrudan kullanmak için gereklidir. |
+| `ANTHROPIC_API_KEY` | **Anthropic** | Sektör lideri `claude-3-5-sonnet`, `claude-3-opus` gibi Claude modellerini doğrudan Anthropic altyapısından çağırmak için kullanılır. |
+| `DEEPSEEK_API_KEY` | **DeepSeek** | Akıl yürütme (reasoning) ve kodlama konusunda çok güçlü olan `deepseek-chat` (DeepSeek-V3) ve `deepseek-reasoner` (DeepSeek-R1) modellerini doğrudan resmi DeepSeek API'si üzerinden kullanmak için eklenmelidir. |
+| `GROQ_API_KEY` | **Groq** | LLaMA 3, Mixtral gibi açık kaynaklı modelleri son derece yüksek hızlarda (token/saniye) çalıştırmak için eklenir. |
+| `HF_TOKEN` | **Hugging Face** | Hem kodlarınızın GitHub'dan Hugging Face Spaces'e otomatik senkronizasyonu için, hem de Hugging Face üzerindeki açık kaynaklı modelleri barındıran API'leri sorgulamak için kullanılır. |
+| `GITHUB_TOKEN` | **GitHub** | `.hermes` veri klasörü ile `config.yaml` dosyasındaki değişiklikleri belirlediğiniz özel/genel GitHub deponuza periyodik ve otomatik olarak yedeklemek (push/clone) için zorunludur. |
+
+---
+
+### 🛠️ API Anahtarları Hangi Ortamda Nasıl Tanımlanır?
+
+Uygulamayı çalıştırdığınız platforma göre API anahtarlarını tanımlama yöntemleri aşağıda detaylandırılmıştır:
+
+#### Yöntem A: Hugging Face Spaces Üzerinde Tanımlama (Önerilen)
+Hugging Face Spaces üzerinde API anahtarlarınızı asla açık kaynak kodlara veya `config.yaml` içerisine düz metin (plain text) olarak yazmamalısınız. Bunlar her zaman **Secret (Gizli Değişken)** olarak tanımlanmalıdır.
+
+1. **Hugging Face Space Sayfanıza Gidin:** Space arayüzünüzün üst barındaki **Settings** (Ayarlar) sekmesine tıklayın.
+2. **Variables and Secrets Bölümüne Gidin:** Sayfayı aşağı kaydırarak **Variables and secrets** bölümünü bulun.
+3. **Yeni Bir Gizli Değişken Ekleyin (New Secret):**
+   - **"New Secret"** butonuna tıklayın.
+   - **Name (Adı):** Tanımlayacağınız API anahtarının adını girin (Örn: `OPENROUTER_API_KEY`, `OPENAI_API_KEY` veya `GITHUB_TOKEN`).
+   - **Value (Değeri):** API sağlayıcınızdan aldığınız gizli anahtarı yapıştırın.
+   - **Save** butonuna basarak kaydedin.
+4. **Yeniden Başlatma:** Bir Secret eklediğinizde veya güncellediğinizde, Hugging Face Space uygulamanızı bu yeni güvenli değişkenlerle **otomatik olarak yeniden başlatacaktır**.
+
+*(Not: `GITHUB_BACKUP_REPO` gibi gizli olmayan ve sadece depo adresini tutan değişkenleri "New Variable" butonuna tıklayarak düz çevre değişkeni olarak da ekleyebilirsiniz.)*
+
+---
+
+#### Yöntem B: Yerel Docker Ortamında Tanımlama (Local Development)
+Projeyi kendi bilgisayarınızda Docker ile çalıştırırken API anahtarlarını iki farklı şekilde tanımlayabilirsiniz:
+
+##### 1. Docker `run` Komutu Esnasında Doğrudan (`-e` Parametresi ile):
+Konteyneri başlatırken her bir anahtarı `-e` parametresiyle parametre olarak geçebilirsiniz:
+```bash
+docker run -p 7860:7860 \
+  -e HERMES_DASHBOARD_BASIC_AUTH_USERNAME=admin \
+  -e HERMES_DASHBOARD_BASIC_AUTH_PASSWORD=GucluBirSifre123! \
+  -e OPENROUTER_API_KEY="sk-or-v1-xxxxxxxxxxxx..." \
+  -e OPENAI_API_KEY="sk-proj-xxxxxxxxxxxx..." \
+  -e GITHUB_BACKUP_REPO="github.com/kullanici/hermes-yedek" \
+  -e GITHUB_TOKEN="ghp_xxxxxxxxxxxx..." \
+  my-hermes-agent
+```
+
+##### 2. `.env` Dosyası Kullanarak (Daha Pratik):
+Proje kök dizininde gizli bir `.env` dosyası oluşturun ve içerisine anahtarlarınızı yazın:
+```env
+HERMES_DASHBOARD_BASIC_AUTH_USERNAME=admin
+HERMES_DASHBOARD_BASIC_AUTH_PASSWORD=GucluBirSifre123!
+OPENROUTER_API_KEY=sk-or-v1-xxxxxxxxxxxx...
+OPENAI_API_KEY=sk-proj-xxxxxxxxxxxx...
+DEEPSEEK_API_KEY=sk-xxxxxxxxxxxx...
+GITHUB_BACKUP_REPO=github.com/kullanici/hermes-yedek
+GITHUB_TOKEN=ghp_xxxxxxxxxxxx...
+```
+Ardından Docker konteynerini bu `.env` dosyasını referans göstererek tek seferde başlatın:
+```bash
+docker run -p 7860:7860 --env-file .env my-hermes-agent
+```
+
+---
+
+#### Yöntem C: GitHub Actions Üzerinde Tanımlama (Otomatik Senkronizasyon İçin)
+Kodlarınızı GitHub'a yüklediğinizde Hugging Face Space'inizin otomatik olarak güncellenmesi için (`.github/workflows/hf-sync.yml` tetiklendiğinde) Hugging Face Write Token'ınızı GitHub Sırları (Secrets) arasına eklemelisiniz:
+
+1. **Hugging Face Token'ı Alın:**
+   - [Hugging Face Settings -> Tokens](https://huggingface.co/settings/tokens) adresine gidin.
+   - **New Token** butonuna tıklayın.
+   - Rolünü mutlaka **Write** (Yazma) yapın ve oluşturulan token'ı kopyalayın.
+2. **GitHub Deponuza Ekleyin:**
+   - GitHub üzerinde kodlarınızın bulunduğu deponun **Settings** sekmesine girin.
+   - Sol menüden **Secrets and variables** -> **Actions** yolunu takip edin.
+   - **"New repository secret"** butonuna tıklayın.
+   - **Name:** `HF_TOKEN` yazın.
+   - **Value:** Kopyaladığınız Hugging Face Write token'ını yapıştırın.
+   - **Add secret** butonuna tıklayarak tamamlayın.
 
 ---
 
