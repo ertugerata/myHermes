@@ -4,31 +4,11 @@ set -uo pipefail
 SCRIPT_START_TS=$(date +%s)
 TARGET_PORT=${PORT:-7860}
 
-# WORKDIR ($HOME/app) her zaman CMD'nin çalıştığı dizin olduğu için config.yaml'ın
-# konumu tektir; artık ne bash ne de Python tarafında ayrı "önce şurayı dene,
-# olmazsa burayı dene" mantığına gerek yok. Tek kaynak burada tanımlanır ve
-# Python bloğuna CONFIG_SRC ortam değişkeniyle aktarılır.
-CONFIG_SRC="$HOME/app/config.yaml"
-export CONFIG_SRC
-
-# Trap'i en başta kaydediyoruz ki restore/backup_loop başlamadan önce gelen
-# bir SIGTERM/SIGINT'te de düzgün kapanabilelim.
-cleanup() {
-    echo "=== ALINAN SİNYAL: GRACEFUL SHUTDOWN BAŞLATILIYOR ==="
-    if [ -n "${BACKUP_LOOP_PID:-}" ]; then
-        echo "Yedekleme döngüsü durduruluyor..."
-        kill "$BACKUP_LOOP_PID" 2>/dev/null || true
-    fi
-    if [ -n "${HERMES_PID:-}" ]; then
-        echo "Hermes durduruluyor..."
-        kill -TERM "$HERMES_PID" 2>/dev/null || true
-        wait "$HERMES_PID" 2>/dev/null || true
-    fi
-    echo "=== KAPANMADAN ÖNCE SON YEDEKLEME YAPILIYOR ==="
-    bash "$HOME/app/scripts/github-backup.sh" backup
-    exit 0
-}
-trap cleanup SIGTERM SIGINT
+# Ensure PATH and home directories are correctly configured
+export PATH="/opt/hermes/bin:/opt/hermes/.venv/bin:$HOME/.local/bin:$PATH"
+export HERMES_HOME="$HOME/.hermes"
+export HERMES_WRITE_SAFE_ROOT="$HOME/.hermes"
+export HERMES_LAZY_INSTALL_TARGET="$HOME/.hermes/lazy-packages"
 
 echo "=== DNS HAZIRLIĞI VE ÖNÇÖZÜMLEME ==="
 # Runs dns-resolve.py to pre-resolve blocked domains via DNS-over-HTTPS.
@@ -65,10 +45,22 @@ backup_loop() {
 }
 
 echo "=== AUTHENTICATION YAPILANDIRILIYOR ==="
+# Determine Python binary path dynamically
+if [ -f "/opt/hermes/.venv/bin/python" ]; then
+    HERMES_PYTHON="/opt/hermes/.venv/bin/python"
+elif [ -f "$HOME/.hermes/hermes-agent/venv/bin/python" ]; then
+    HERMES_PYTHON="$HOME/.hermes/hermes-agent/venv/bin/python"
+else
+    HERMES_PYTHON="python3"
+fi
+
 # Python script to load, generate (if not provided), hash and modify config.yaml to configure username and password_hash
-"$HOME/.hermes/hermes-agent/venv/bin/python" -c "
+"$HERMES_PYTHON" -c "
 import os, sys, yaml
-sys.path.append(os.path.expanduser('~/.hermes/hermes-agent'))
+if os.path.exists(os.path.expanduser('~/.hermes/hermes-agent')):
+    sys.path.append(os.path.expanduser('~/.hermes/hermes-agent'))
+elif os.path.exists('/opt/hermes'):
+    sys.path.append('/opt/hermes')
 from plugins.dashboard_auth.basic import hash_password
 import secrets
 
