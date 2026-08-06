@@ -8,6 +8,22 @@ Bu kılavuz, **Hermes Agent** web arayüzünün (Dashboard) Hugging Face Spaces 
 
 Bu proje, Hermes Agent Dashboard'u bir Docker konteyneri içinde barındırır. Hugging Face Spaces veya yerel konteyner ortamlarında sorunsuz, yüksek performanslı ve güvenli çalışacak şekilde optimize edilmiştir.
 
+### 🧙‍♂️ İnteraktif Kurulum Sihirbazı (Önerilen)
+Konteynerinizi çalıştırmadan önce tüm ayarlarınızı interaktif ve kolay bir şekilde yapılandırmak isterseniz, sizin için hazırladığımız Türkçe kurulum sihirbazını yerel ortamınızda çalıştırabilirsiniz:
+```bash
+./scripts/setup-wizard.sh
+```
+Bu sihirbaz size adım adım rehberlik ederek:
+- Dashboard yönetici adı ve şifresi belirlemenizi (veya otomatik güvenli şifre üretilmesini),
+- Gerekli tüm yapay zeka API anahtarlarını (OpenRouter, OpenAI, Anthropic, DeepSeek, Groq vb.) girmenizi,
+- GitHub otomatik yedekleme sistemini (depo adresi, PAT token ve periyot) kolayca kurmanuzu sağlayacaktır.
+
+Seçtiğiniz hedef ortama göre (Yerel Docker veya Hugging Face Spaces):
+- **Hugging Face Spaces** için hangi Secret ve Variable değerlerini Hugging Face arayüzüne kopyalamanız gerektiğini gösteren şık bir rehber sunar.
+- **Yerel Docker** için gerekli tüm değişkenleri otomatik olarak kök dizinde `.env` dosyasına yazar ve isteğinize bağlı olarak Docker imajını derleyip konteynerinizi arka planda anında çalıştırır.
+
+---
+
 ### Yerel Ortamda Docker ile Çalıştırma
 Yerel makinenizde test etmek veya çalıştırmak için aşağıdaki adımları takip edebilirsiniz:
 
