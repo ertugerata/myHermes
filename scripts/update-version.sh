@@ -29,7 +29,21 @@ echo "Okunan Sürüm: $VERSION"
 
 # GitHub API'si üzerinden en son yayınlanan (latest release) sürümü kontrol etme
 echo "GitHub üzerinden en son Hermes Agent sürümü kontrol ediliyor..."
-LATEST_RELEASE=$(curl -s --connect-timeout 5 https://api.github.com/repos/NousResearch/hermes-agent/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+
+# Kimlik doğrulama için token tanımlıysa başlık ekleyelim (oran limitlerini/rate limit aşımını engellemek için)
+AUTH_HEADER=""
+if [ -n "$GITHUB_TOKEN" ]; then
+    AUTH_HEADER="-H \"Authorization: token $GITHUB_TOKEN\""
+elif [ -n "$GH_TOKEN" ]; then
+    AUTH_HEADER="-H \"Authorization: token $GH_TOKEN\""
+fi
+
+# Curl komutunu dinamik başlıkla yürütelim
+if [ -n "$AUTH_HEADER" ]; then
+    LATEST_RELEASE=$(eval "curl -s $AUTH_HEADER --connect-timeout 5 https://api.github.com/repos/NousResearch/hermes-agent/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+else
+    LATEST_RELEASE=$(curl -s --connect-timeout 5 https://api.github.com/repos/NousResearch/hermes-agent/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+fi
 
 if [ -n "$LATEST_RELEASE" ]; then
     echo "GitHub'daki En Son Sürüm: $LATEST_RELEASE"
@@ -40,7 +54,14 @@ if [ -n "$LATEST_RELEASE" ]; then
         echo "INFO: Tebrikler, zaten en güncel sürümü ($VERSION) kullanıyorsunuz."
     fi
 else
-    echo "WARNING: GitHub API'sine erişilemedi veya en son sürüm bilgisi alınamadı (Çevrimdışı olabilirsiniz veya API istek limiti dolmuş olabilir)."
+    echo "WARNING: GitHub API'sine erişilemedi veya en son sürüm bilgisi alınamadı."
+    echo "Olası Nedenler:"
+    echo "  1. İnternet bağlantınız olmayabilir."
+    echo "  2. GitHub API oran limitine (Rate Limit) takılmış olabilirsiniz. Kimlik doğrulama yapmadan yapılan isteklerde GitHub saatlik limit uygular."
+    echo "Çözüm:"
+    echo "  Eğer oran limitine takıldıysanız, 'GITHUB_TOKEN' veya 'GH_TOKEN' çevre değişkenini tanımlayarak bu betiği tekrar çalıştırabilirsiniz:"
+    echo "  export GITHUB_TOKEN=\"github_pat_xxxxxx\""
+    echo "  ./scripts/update-version.sh"
 fi
 
 # Dockerfile dosyasının varlığını kontrol et
