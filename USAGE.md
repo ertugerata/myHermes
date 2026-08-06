@@ -19,6 +19,13 @@ Yerel makinenizde test etmek veya çalıştırmak için aşağıdaki adımları 
    ```
    Bu işlem, `Dockerfile` içindeki sürüm tanımını otomatik olarak güncelleyecektir. GitHub Actions (`hf-sync.yml`) iş akışı da `main` dalına yapılan push'larda bu işlemi otomatik olarak gerçekleştirir.
 
+   > 💡 **GitHub API Oran Limiti (Rate Limit) Hatası Giderme:**
+   > Eğer betiği çalıştırırken *"GitHub API'sine erişilemedi veya en son sürüm bilgisi alınamadı"* uyarısı alırsanız, bu durum anonim isteklerin saatlik sınırına ulaşıldığını gösterebilir. Çözüm için terminalde geçerli bir `GITHUB_TOKEN` veya `GH_TOKEN` tanımlayarak komutu tekrar çalıştırın:
+   > ```bash
+   > export GITHUB_TOKEN="ghp_senin_kisisel_erisim_tokenin"
+   > ./scripts/update-version.sh
+   > ```
+
 2. **Docker İmajını Derleyin:**
    ```bash
    docker build -t my-hermes-agent .
