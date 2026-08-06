@@ -11,7 +11,10 @@ RUN apt-get update && apt-get install -y \
     curl \
     tar \
     xz-utils \
-    sudo \
+    build-essential \
+    python3-dev \
+    libffi-dev \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 # Hugging Face Spaces için "user" kullanıcısını tanımlayalım.
