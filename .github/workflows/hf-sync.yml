@@ -15,6 +15,17 @@ jobs:
           fetch-depth: 0
           lfs: true
 
+      - name: Run version update script
+        run: |
+          chmod +x scripts/update-version.sh
+          ./scripts/update-version.sh
+
+      - name: Commit version updates if any
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git diff --quiet || (git commit -am "chore: auto-update Dockerfile from VERSION.txt" && git push origin HEAD:${{ github.ref_name }})
+
       - name: Push to Hugging Face
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}

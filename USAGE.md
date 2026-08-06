@@ -11,7 +11,15 @@ Bu proje, Hermes Agent Dashboard'u bir Docker konteyneri içinde barındırır. 
 ### Yerel Ortamda Docker ile Çalıştırma
 Yerel makinenizde test etmek veya çalıştırmak için aşağıdaki adımları takip edebilirsiniz:
 
-1. **Docker İmajını Derleyin:**
+1. **Sürümü Güncelleyin (Opsiyonel):**
+   Uygulamanın çalışacağı temel Hermes imajının sürümünü değiştirmek isterseniz, proje kökündeki `VERSION.txt` dosyasını düzenleyin ve ardından `scripts/update-version.sh` betiğini çalıştırın:
+   ```bash
+   # VERSION.txt dosyasını dilediğiniz sürüm ile güncelleyin (Örn: v2026.7.20)
+   ./scripts/update-version.sh
+   ```
+   Bu işlem, `Dockerfile` içindeki sürüm tanımını otomatik olarak güncelleyecektir. GitHub Actions (`hf-sync.yml`) iş akışı da `main` dalına yapılan push'larda bu işlemi otomatik olarak gerçekleştirir.
+
+2. **Docker İmajını Derleyin:**
    ```bash
    docker build -t my-hermes-agent .
    ```
