@@ -27,6 +27,22 @@ fi
 
 echo "Okunan Sürüm: $VERSION"
 
+# GitHub API'si üzerinden en son yayınlanan (latest release) sürümü kontrol etme
+echo "GitHub üzerinden en son Hermes Agent sürümü kontrol ediliyor..."
+LATEST_RELEASE=$(curl -s --connect-timeout 5 https://api.github.com/repos/NousResearch/hermes-agent/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+
+if [ -n "$LATEST_RELEASE" ]; then
+    echo "GitHub'daki En Son Sürüm: $LATEST_RELEASE"
+    if [ "$VERSION" != "$LATEST_RELEASE" ]; then
+        echo "WARNING: Yerel sürümünüz ($VERSION), GitHub'daki en son sürüm olan ($LATEST_RELEASE) ile eşleşmiyor!"
+        echo "Güncellemek isterseniz, VERSION.txt dosyasını '$LATEST_RELEASE' olarak güncelleyip bu betiği tekrar çalıştırabilirsiniz."
+    else
+        echo "INFO: Tebrikler, zaten en güncel sürümü ($VERSION) kullanıyorsunuz."
+    fi
+else
+    echo "WARNING: GitHub API'sine erişilemedi veya en son sürüm bilgisi alınamadı (Çevrimdışı olabilirsiniz veya API istek limiti dolmuş olabilir)."
+fi
+
 # Dockerfile dosyasının varlığını kontrol et
 if [ ! -f "$DOCKERFILE" ]; then
     echo "ERROR: $DOCKERFILE bulunamadı!" >&2
