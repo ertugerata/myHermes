@@ -9,6 +9,7 @@ export PATH="/opt/hermes/bin:/opt/hermes/.venv/bin:$HOME/.local/bin:$PATH"
 export HERMES_HOME="$HOME/.hermes"
 export HERMES_WRITE_SAFE_ROOT="$HOME/.hermes"
 export HERMES_LAZY_INSTALL_TARGET="$HOME/.hermes/lazy-packages"
+export CONFIG_SRC="$HOME/app/config.yaml"
 
 echo "=== DNS HAZIRLIĞI VE ÖNÇÖZÜMLEME ==="
 # Runs dns-resolve.py to pre-resolve blocked domains via DNS-over-HTTPS.
