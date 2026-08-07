@@ -255,6 +255,32 @@ Ardından Docker konteynerini bu `.env` dosyasını referans göstererek tek sef
 docker run -p 7860:7860 --env-file .env my-hermes-agent
 ```
 
+#### 📦 Docker'da `.env` İçe Aktarımı ve Detaylı Çalışma Prensibi
+
+##### Docker'da `.env` Dosyasının Rolü ve Güvenlik Uyarıları:
+- **Derleme (Build Time) Güvenliği:** Docker imajını derlerken (`docker build`), proje dizinindeki `.env` dosyası imaja **kopyalanmaz** veya dahil edilmez. Bu, API anahtarlarınızın ve şifrelerinizin Docker imajının katmanlarında kalıcı olarak saklanmasını engellediği için son derece kritik bir güvenlik önlemidir.
+- **Çalışma Zamanı (Runtime) Entegrasyonu:** `.env` dosyasının içeriği, konteyneri çalıştırırken (`docker run`) `--env-file .env` parametresiyle dinamik olarak Docker sürecine enjekte edilir. Bu sayede tüm gizli anahtarlar sadece çalışma zamanında RAM üzerinde tutulur.
+
+##### Otomatik .env Senkronizasyonu ve Çözüm Mantığı:
+Kullanıcıların setup-wizard.sh ile oluşturdukları `.env` dosyasındaki API anahtarlarının (örneğin `OPENROUTER_API_KEY`) web arayüzünde görünmemesi veya algılanmaması sorunu, Hermes Agent'ın gizli anahtarları ayrı bir konumda (`~/.hermes/.env` ve `~/.config/hermes/.env`) araması ve `config.yaml` ile birlikte ayrı dosyalar halinde yönetmesinden kaynaklanmaktadır.
+
+Geliştirdiğimiz entegre çözüm sayesinde:
+1. Konteyner ayağa kalkarken `scripts/start.sh` dosyası, çalışma dizinindeki (`$HOME/app/.env`) yerel `.env` dosyasını otomatik olarak tespit eder ve `source` ederek çevre değişkenlerini kabuğa aktarır.
+2. start.sh içindeki Python entegrasyon betiği, kabuktaki tüm kritik anahtarları (API_KEY, TOKEN ve HERMES_ ile başlayan değişkenleri) toplayıp, Hermes Agent'ın kendi çalışma dizinlerindeki (`~/.hermes/.env` ve `~/.config/hermes/.env`) `.env` dosyalarına dinamik olarak yazar ve senkronize tutar.
+3. Böylece hem `config.yaml` hem de `.env` dosyaları birbiriyle tam uyumlu çalışarak OpenRouter veya diğer AI API anahtarlarının Hermes Dashboard arayüzünde eksiksiz ve anında algılanmasını sağlar.
+
+##### Çalıştırma Örneği (Docker CLI):
+```bash
+# Adım 1: Sihirbazı çalıştırıp yerel .env dosyasını oluşturun
+./scripts/setup-wizard.sh
+
+# Adım 2: Docker imajını güvenle derleyin (gizli anahtarlar imaja gömülmez)
+docker build -t my-hermes-agent .
+
+# Adım 3: .env dosyasını --env-file ile referans göstererek konteyneri çalıştırın
+docker run -d --name hermes -p 7860:7860 --env-file .env my-hermes-agent
+```
+
 ---
 
 #### Yöntem C: GitHub Actions Üzerinde Tanımlama (Otomatik Senkronizasyon İçin)
