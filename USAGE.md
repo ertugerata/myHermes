@@ -17,9 +17,9 @@ Bu proje, Hermes Agent'ın TUI (Terminal Kullanıcı Arayüzü) ekranına web ta
 | Arayüz | Port | URL | Açıklama |
 | :--- | :--- | :--- | :--- |
 | **Kontrol Paneli (Dashboard)** | `7860` | `http://localhost:7860` | Web yönetim arayüzü, sohbet, eklentiler ve genel konfigürasyon. |
-| **TUI Web Terminali** | `7681` | `http://localhost:7681` | Tarayıcı üzerinden tam özellikli terminal TUI (Kanban panosu, Temsilci listesi, Oturum geçmişi ve sistem widget'ları). |
+| **TUI Web Terminali** | `7861` | `http://localhost:7861` | Tarayıcı üzerinden tam özellikli terminal TUI (Kanban panosu, Temsilci listesi, Oturum geçmişi ve sistem widget'ları). |
 
-> 💡 **Hugging Face Spaces Ayarı:** Hugging Face Spaces üzerinde dağıtırken her iki porttan da yararlanabilmek için **Settings -> Repository -> Ports** bölümüne `7860, 7681` portlarını eklediğinizden emin olun.
+> 💡 **Hugging Face Spaces Ayarı:** Hugging Face Spaces üzerinde dağıtırken her iki porttan da yararlanabilmek için **Settings -> Repository -> Ports** bölümüne `7860, 7861` portlarını eklediğinizden emin olun.
 
 ---
 
@@ -31,7 +31,7 @@ Konteyner başlatıldığında supervisord, aşağıdaki süreçleri hiyerarşik
 2. **`github-restore` (Öncelik: 20):** Başlangıçta varsa GitHub üzerindeki `.hermes` yedeklerinizi geri yükler.
 3. **`auth-config` (Öncelik: 30):** Çevre değişkenlerinden gelen dashboard giriş bilgilerini ve kimlik doğrulama eklentisini güvenle hazırlar.
 4. **`hermes-dashboard` (Öncelik: 40):** 7860 portunda çalışacak olan ana kontrol panelini ayağa kaldırır.
-5. **`hermes-tui-web` (Öncelik: 50):** 7681 portu üzerinden ttyd terminali ile `hermes --tui` TUI arayüzünü tarayıcılara sunar.
+5. **`hermes-tui-web` (Öncelik: 50):** 7861 portu üzerinden ttyd terminali ile `hermes --tui` TUI arayüzünü tarayıcılara sunar.
 6. **`backup-loop` (Öncelik: 60):** Her 2 saatte bir değişen verileri algılayarak GitHub yedek deposuna push eder.
 
 ---
@@ -94,14 +94,14 @@ Yerel makinenizde test etmek veya çalıştırmak için aşağıdaki adımları 
    ```bash
    docker run -d \
      -p 7860:7860 \
-     -p 7681:7681 \
+     -p 7861:7861 \
      -e OPENROUTER_API_KEY=... \
      -e HERMES_DASHBOARD_BASIC_AUTH_USERNAME=admin \
      -e HERMES_DASHBOARD_BASIC_AUTH_PASSWORD=GucluBirSifre123! \
      -v hermes-data:/home/user/.hermes \
      my-hermes-agent
    ```
-   Ardından tarayıcınızda `http://localhost:7860` ile kontrol paneline, `http://localhost:7681` ile de Web TUI ekranına bağlanabilirsiniz.
+   Ardından tarayıcınızda `http://localhost:7860` ile kontrol paneline, `http://localhost:7861` ile de Web TUI ekranına bağlanabilirsiniz.
 
 ---
 
@@ -274,7 +274,7 @@ Konteyneri başlatırken her bir anahtarı `-e` parametresiyle parametre olarak 
 ```bash
 docker run -d \
   -p 7860:7860 \
-  -p 7681:7681 \
+  -p 7861:7861 \
   -e HERMES_DASHBOARD_BASIC_AUTH_USERNAME=admin \
   -e HERMES_DASHBOARD_BASIC_AUTH_PASSWORD=GucluBirSifre123! \
   -e OPENROUTER_API_KEY="sk-or-v1-xxxxxxxxxxxx..." \
@@ -297,7 +297,7 @@ GITHUB_TOKEN=ghp_xxxxxxxxxxxx...
 ```
 Ardından Docker konteynerini bu `.env` dosyasını referans göstererek tek seferde başlatın:
 ```bash
-docker run -d -p 7860:7860 -p 7681:7681 --env-file .env my-hermes-agent
+docker run -d -p 7860:7860 -p 7861:7861 --env-file .env my-hermes-agent
 ```
 
 #### 📦 Docker'da `.env` İçe Aktarımı ve Detaylı Çalışma Prensibi
@@ -323,7 +323,7 @@ Geliştirdiğimiz entegre çözüm sayesinde:
 docker build -t my-hermes-agent .
 
 # Adım 3: .env dosyasını --env-file ile referans göstererek konteyneri çalıştırın
-docker run -d --name hermes -p 7860:7860 -p 7681:7681 --env-file .env my-hermes-agent
+docker run -d --name hermes -p 7860:7860 -p 7861:7861 --env-file .env my-hermes-agent
 ```
 
 ---

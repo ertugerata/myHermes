@@ -65,7 +65,7 @@ RUN mkdir -p $HOME/.hermes && \
 
 RUN chmod +x scripts/start.sh scripts/dns-resolve.py scripts/setup-wizard.sh 2>/dev/null || true
 
-EXPOSE 7860 7681
+EXPOSE 7860 7861
 
-# Giriş noktasını supervisord olarak ayarlıyoruz
-ENTRYPOINT ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+# Giriş noktasını başlangıç betiği (start.sh) olarak ayarlıyoruz
+ENTRYPOINT ["/home/user/app/scripts/start.sh"]
