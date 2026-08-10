@@ -8,6 +8,49 @@ Bu kılavuz, **Hermes Agent** web arayüzünün (Dashboard) Hugging Face Spaces 
 
 Bu proje, Hermes Agent Dashboard'u bir Docker konteyneri içinde barındırır. Hugging Face Spaces veya yerel konteyner ortamlarında sorunsuz, yüksek performanslı ve güvenli çalışacak şekilde optimize edilmiştir.
 
+### 🖥️ Web TUI (ttyd Terminali) ve Süreç Yönetimi (Supervisor)
+
+Bu proje, Hermes Agent'ın TUI (Terminal Kullanıcı Arayüzü) ekranına web tarayıcınız üzerinden erişebilmenizi sağlayan **ttyd** (xterm.js tabanlı web terminali) entegrasyonuyla birlikte gelir. Tüm arka plan süreçleri, otomatik kurtarma, periyodik yedekleme ve sıralı başlatma özellikleri ise endüstriyel standarttaki **supervisord** süreç yöneticisi tarafından yönetilir.
+
+#### 🔌 Sunulan Web Arayüzleri ve Erişim Portları
+
+| Arayüz | Port | URL | Açıklama |
+| :--- | :--- | :--- | :--- |
+| **Kontrol Paneli (Dashboard)** | `7860` | `http://localhost:7860` | Web yönetim arayüzü, sohbet, eklentiler ve genel konfigürasyon. |
+| **TUI Web Terminali** | `7681` | `http://localhost:7681` | Tarayıcı üzerinden tam özellikli terminal TUI (Kanban panosu, Temsilci listesi, Oturum geçmişi ve sistem widget'ları). |
+
+> 💡 **Hugging Face Spaces Ayarı:** Hugging Face Spaces üzerinde dağıtırken her iki porttan da yararlanabilmek için **Settings -> Repository -> Ports** bölümüne `7860, 7681` portlarını eklediğinizden emin olun.
+
+---
+
+#### ⚙️ Supervisord Süreç Yapılandırması ve Sıralı Başlatma
+
+Konteyner başlatıldığında supervisord, aşağıdaki süreçleri hiyerarşik öncelik (priority) değerlerine göre sırasıyla ve güvenli bir şekilde çalıştırır:
+
+1. **`dns-resolve` (Öncelik: 10):** DoH (DNS-over-HTTPS) ön çözümleme servisini başlatarak engelli alan adlarını tespit eder.
+2. **`github-restore` (Öncelik: 20):** Başlangıçta varsa GitHub üzerindeki `.hermes` yedeklerinizi geri yükler.
+3. **`auth-config` (Öncelik: 30):** Çevre değişkenlerinden gelen dashboard giriş bilgilerini ve kimlik doğrulama eklentisini güvenle hazırlar.
+4. **`hermes-dashboard` (Öncelik: 40):** 7860 portunda çalışacak olan ana kontrol panelini ayağa kaldırır.
+5. **`hermes-tui-web` (Öncelik: 50):** 7681 portu üzerinden ttyd terminali ile `hermes --tui` TUI arayüzünü tarayıcılara sunar.
+6. **`backup-loop` (Öncelik: 60):** Her 2 saatte bir değişen verileri algılayarak GitHub yedek deposuna push eder.
+
+---
+
+#### 🔍 Konteyner İçi Doğrulama ve Durum Takibi
+
+Konteyner içerisinde hangi süreçlerin aktif olarak çalıştığını veya loglarını anlık izlemek için:
+
+```bash
+# Tüm servislerin durumunu kontrol edin
+supervisorctl status
+
+# Belirli bir servisin durumunu veya loglarını izleyin
+supervisorctl tail -f hermes-tui-web
+supervisorctl tail -f hermes-dashboard
+```
+
+---
+
 ### 🧙‍♂️ İnteraktif Kurulum Sihirbazı (Önerilen)
 Konteynerinizi çalıştırmadan önce tüm ayarlarınızı interaktif ve kolay bir şekilde yapılandırmak isterseniz, sizin için hazırladığımız Türkçe kurulum sihirbazını yerel ortamınızda çalıştırabilirsiniz:
 ```bash
@@ -47,18 +90,18 @@ Yerel makinenizde test etmek veya çalıştırmak için aşağıdaki adımları 
    docker build -t my-hermes-agent .
    ```
 
-2. **Konteyneri Başlatın:**
+3. **Konteyneri Başlatın:**
    ```bash
-   docker run -p 7860:7860 \
+   docker run -d \
+     -p 7860:7860 \
+     -p 7681:7681 \
+     -e OPENROUTER_API_KEY=... \
      -e HERMES_DASHBOARD_BASIC_AUTH_USERNAME=admin \
      -e HERMES_DASHBOARD_BASIC_AUTH_PASSWORD=GucluBirSifre123! \
+     -v hermes-data:/home/user/.hermes \
      my-hermes-agent
    ```
-   Ardından tarayıcınızda `http://localhost:7860` adresine giderek giriş yapabilirsiniz.
-
-### 🔄 Sinyal Yakalama ve Kesintisiz Çalışma (Graceful Shutdown)
-Konteynerin Hugging Face Spaces veya Docker üzerinde beklenmedik şekilde aniden kapanmasını önlemek ve sistem sinyallerini düzgün yönetmek amacıyla, `hermes dashboard` komutu arka planda (`0.0.0.0` IP adresine bağlı olarak) çalıştırılır ve ön planda bir `wait` komutu ile beklenir.
-Bu sayede shell üzerinde bir sinyal yakalayıcı (trap) kurulmuştur. Konteyner durdurulurken `SIGTERM` veya `SIGINT` sinyalleri yakalanarak son durum güvenli bir şekilde yedeklenir ve süreç kontrollü (graceful) olarak sonlandırılır.
+   Ardından tarayıcınızda `http://localhost:7860` ile kontrol paneline, `http://localhost:7681` ile de Web TUI ekranına bağlanabilirsiniz.
 
 ---
 
@@ -115,7 +158,7 @@ Uygulamanın oturum geçmişi, veritabanı ve ayarları (`.hermes` dizini ve `co
    - Herhangi bir değişiklik algılanırsa, değişiklikler otomatik olarak commit edilip GitHub deponuza güvenli bir şekilde gönderilir (push edilir).
 
 3. **Kapatma Esnasında Yedekleme (Graceful Shutdown):**
-   - Hugging Face Spaces konteyneri durdurulduğunda (uyku moduna geçiş, yeniden başlatma vb.), sistem `SIGTERM` veya `SIGINT` sinyalini yakalar ve kapanmadan önce **en güncel durumu son bir kez GitHub deposuna push eder**.
+   - Hugging Face Spaces konteyneri durdurulduğunda (uyku moduna geçiş, yeniden başlatma vb.), sistem `SIGTERM` veya `SIGINT` sinyalini yakalar ve kapanmadan önce **en güncel durumu son bir kez GitHub deponuza push eder**.
 
 4. **Kalıcı Loglama ve Geçmiş Takibi:**
    - Yedekleme ve geri yükleme işlemleri kullanıcı tarafından kolayca takip edilebilir. Tüm adımlar, zaman damgalı durum logları (`INFO`, `SUCCESS`, `WARNING`, `ERROR`) olarak standart çıktıya (stdout) basılır ve kalıcı olarak `$HOME/app/backup.log` dosyasına kaydedilir.
@@ -165,7 +208,7 @@ Uygulamanın çalışması için aşağıdaki değişkenler kullanılmaktadır. 
 
 | Değişken Adı | Türü | Varsayılan | Açıklama |
 | :--- | :--- | :--- | :--- |
-| `PORT` | Değişken | `7860` | Uygulamanın dinleyeceği port. Hugging Face Spaces bunu otomatik ayarlar. |
+| `PORT` | Değişken | `7860` | Ana kontrol panelinin dinleyeceği port. Hugging Face Spaces bunu otomatik ayarlar. |
 | `HF_TOKEN` | Sır (Secret) | *(Boş)* | Hugging Face API erişim token'ı. Geri yükleme doğrulaması ve model API erişimleri için kullanılır. |
 
 ### 3. Yapay Zeka (AI) API Anahtarları
@@ -229,7 +272,9 @@ Projeyi kendi bilgisayarınızda Docker ile çalıştırırken API anahtarların
 ##### 1. Docker `run` Komutu Esnasında Doğrudan (`-e` Parametresi ile):
 Konteyneri başlatırken her bir anahtarı `-e` parametresiyle parametre olarak geçebilirsiniz:
 ```bash
-docker run -p 7860:7860 \
+docker run -d \
+  -p 7860:7860 \
+  -p 7681:7681 \
   -e HERMES_DASHBOARD_BASIC_AUTH_USERNAME=admin \
   -e HERMES_DASHBOARD_BASIC_AUTH_PASSWORD=GucluBirSifre123! \
   -e OPENROUTER_API_KEY="sk-or-v1-xxxxxxxxxxxx..." \
@@ -252,7 +297,7 @@ GITHUB_TOKEN=ghp_xxxxxxxxxxxx...
 ```
 Ardından Docker konteynerini bu `.env` dosyasını referans göstererek tek seferde başlatın:
 ```bash
-docker run -p 7860:7860 --env-file .env my-hermes-agent
+docker run -d -p 7860:7860 -p 7681:7681 --env-file .env my-hermes-agent
 ```
 
 #### 📦 Docker'da `.env` İçe Aktarımı ve Detaylı Çalışma Prensibi
@@ -278,7 +323,7 @@ Geliştirdiğimiz entegre çözüm sayesinde:
 docker build -t my-hermes-agent .
 
 # Adım 3: .env dosyasını --env-file ile referans göstererek konteyneri çalıştırın
-docker run -d --name hermes -p 7860:7860 --env-file .env my-hermes-agent
+docker run -d --name hermes -p 7860:7860 -p 7681:7681 --env-file .env my-hermes-agent
 ```
 
 ---
