@@ -1,4 +1,4 @@
-ARG HERMES_VERSION=v2026.7.20
+ARG HERMES_VERSION=v2026.8.3
 FROM nousresearch/hermes-agent:${HERMES_VERSION}
 
 USER root
