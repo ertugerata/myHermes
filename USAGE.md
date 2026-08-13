@@ -90,17 +90,33 @@ Yerel makinenizde test etmek veya çalıştırmak için aşağıdaki adımları 
    docker build -t my-hermes-agent .
    ```
 
-3. **Konteyneri Başlatın:**
-   ```bash
-   docker run -d \
-     -p 7860:7860 \
-     -p 7861:7861 \
-     -e OPENROUTER_API_KEY=... \
-     -e HERMES_DASHBOARD_BASIC_AUTH_USERNAME=admin \
-     -e HERMES_DASHBOARD_BASIC_AUTH_PASSWORD=GucluBirSifre123! \
-     -v "$HOME/.hermes:/home/user/.hermes" \
-     my-hermes-agent
-   ```
+3. **Konteyneri Başlatın (Veri Saklama Yönteminize Göre):**
+   Verilerinizi yerel ev dizininizde mi yoksa izole bir Docker Named Volume içerisinde mi saklamak istediğinize göre aşağıdaki komutlardan birini seçebilirsiniz:
+
+   * **Seçenek A: Yerel Ev Dizini (Önerilen - Host üzerindeki ~/.hermes klasörünü bağlar):**
+     ```bash
+     mkdir -p "$HOME/.hermes"
+     docker run -d \
+       -p 7860:7860 \
+       -p 7861:7861 \
+       -e OPENROUTER_API_KEY=... \
+       -e HERMES_DASHBOARD_BASIC_AUTH_USERNAME=admin \
+       -e HERMES_DASHBOARD_BASIC_AUTH_PASSWORD=GucluBirSifre123! \
+       -v "$HOME/.hermes:/home/user/.hermes" \
+       my-hermes-agent
+     ```
+
+   * **Seçenek B: Docker Hacmi (hermes-data adında izole bir Docker Named Volume kullanır):**
+     ```bash
+     docker run -d \
+       -p 7860:7860 \
+       -p 7861:7861 \
+       -e OPENROUTER_API_KEY=... \
+       -e HERMES_DASHBOARD_BASIC_AUTH_USERNAME=admin \
+       -e HERMES_DASHBOARD_BASIC_AUTH_PASSWORD=GucluBirSifre123! \
+       -v hermes-data:/home/user/.hermes \
+       my-hermes-agent
+     ```
    Ardından tarayıcınızda `http://localhost:7860` ile kontrol paneline, `http://localhost:7861` ile de Web TUI ekranına bağlanabilirsiniz.
 
 ---
@@ -270,7 +286,7 @@ Hugging Face Spaces üzerinde API anahtarlarınızı asla açık kaynak kodlara 
 Projeyi kendi bilgisayarınızda Docker ile çalıştırırken API anahtarlarını iki farklı şekilde tanımlayabilirsiniz:
 
 ##### 1. Docker `run` Komutu Esnasında Doğrudan (`-e` Parametresi ile):
-Konteyneri başlatırken her bir anahtarı `-e` parametresiyle parametre olarak geçebilirsiniz:
+Konteyneri başlatırken her bir anahtarı `-e` parametresiyle geçebilir, ayrıca `-v "$HOME/.hermes:/home/user/.hermes"` (Yerel Ev Dizini) veya `-v hermes-data:/home/user/.hermes` (Docker Hacmi) tercih edebilirsiniz:
 ```bash
 docker run -d \
   -p 7860:7860 \
@@ -296,9 +312,13 @@ DEEPSEEK_API_KEY=sk-xxxxxxxxxxxx...
 GITHUB_BACKUP_REPO=github.com/kullanici/hermes-yedek
 GITHUB_TOKEN=ghp_xxxxxxxxxxxx...
 ```
-Ardından Docker konteynerini bu `.env` dosyasını referans göstererek tek seferde başlatın (ev dizininizdeki `.hermes` klasörünü kalıcı veri saklama için bağlamayı unutmayın):
+Ardından Docker konteynerini bu `.env` dosyasını referans göstererek tek seferde başlatın (Yerel Ev Dizini `-v "$HOME/.hermes:/home/user/.hermes"` veya Docker Hacmi `-v hermes-data:/home/user/.hermes` kullanabilirsiniz):
 ```bash
+# Seçenek A: Yerel Ev Dizini
 docker run -d -p 7860:7860 -p 7861:7861 -v "$HOME/.hermes:/home/user/.hermes" --env-file .env my-hermes-agent
+
+# Seçenek B: Docker Hacmi
+docker run -d -p 7860:7860 -p 7861:7861 -v hermes-data:/home/user/.hermes --env-file .env my-hermes-agent
 ```
 
 #### 📦 Docker'da `.env` İçe Aktarımı ve Detaylı Çalışma Prensibi
@@ -323,8 +343,12 @@ Geliştirdiğimiz entegre çözüm sayesinde:
 # Adım 2: Docker imajını güvenle derleyin (gizli anahtarlar imaja gömülmez)
 docker build -t my-hermes-agent .
 
-# Adım 3: .env dosyasını --env-file ile referans göstererek ve ev dizinindeki .hermes klasörünü bağlayarak konteyneri çalıştırın
+# Adım 3: .env dosyasını --env-file ile referans göstererek konteyneri çalıştırın (tercih ettiğiniz veri saklama yöntemi ile)
+# Seçenek A: Yerel Ev Dizini
 docker run -d --name hermes -p 7860:7860 -p 7861:7861 -v "$HOME/.hermes:/home/user/.hermes" --env-file .env my-hermes-agent
+
+# Seçenek B: Docker Hacmi
+# docker run -d --name hermes -p 7860:7860 -p 7861:7861 -v hermes-data:/home/user/.hermes --env-file .env my-hermes-agent
 ```
 
 ---
