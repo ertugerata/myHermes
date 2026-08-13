@@ -31,6 +31,15 @@ fi
 # Hedef dizinleri oluştur
 mkdir -p "$HOME/.hermes" "$HOME/.config/hermes"
 
+# Yazma izinlerini kontrol et
+if [ ! -w "$HOME/.hermes" ]; then
+    echo "⚠️  UYARI: $HOME/.hermes dizini yazılabilir değil!"
+    echo "    Docker üzerinden bind-mount (klasör eşleme) yaptıysanız lütfen yerel makinenizde şu izinleri güncelleyin:"
+    echo "    chmod -R 777 ~/.hermes"
+    echo "    veya"
+    echo "    chown -R 1000:1000 ~/.hermes"
+fi
+
 # Eğer yerel .env varsa ~/.hermes/.env konumuna kopyala (başlangıç için)
 if [ -f "$HOME/app/.env" ] && [ ! -f "$HOME/.hermes/.env" ]; then
     cp "$HOME/app/.env" "$HOME/.hermes/.env"

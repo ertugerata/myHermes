@@ -98,7 +98,7 @@ Yerel makinenizde test etmek veya çalıştırmak için aşağıdaki adımları 
      -e OPENROUTER_API_KEY=... \
      -e HERMES_DASHBOARD_BASIC_AUTH_USERNAME=admin \
      -e HERMES_DASHBOARD_BASIC_AUTH_PASSWORD=GucluBirSifre123! \
-     -v hermes-data:/home/user/.hermes \
+     -v "$HOME/.hermes:/home/user/.hermes" \
      my-hermes-agent
    ```
    Ardından tarayıcınızda `http://localhost:7860` ile kontrol paneline, `http://localhost:7861` ile de Web TUI ekranına bağlanabilirsiniz.
@@ -281,6 +281,7 @@ docker run -d \
   -e OPENAI_API_KEY="sk-proj-xxxxxxxxxxxx..." \
   -e GITHUB_BACKUP_REPO="github.com/kullanici/hermes-yedek" \
   -e GITHUB_TOKEN="ghp_xxxxxxxxxxxx..." \
+  -v "$HOME/.hermes:/home/user/.hermes" \
   my-hermes-agent
 ```
 
@@ -295,9 +296,9 @@ DEEPSEEK_API_KEY=sk-xxxxxxxxxxxx...
 GITHUB_BACKUP_REPO=github.com/kullanici/hermes-yedek
 GITHUB_TOKEN=ghp_xxxxxxxxxxxx...
 ```
-Ardından Docker konteynerini bu `.env` dosyasını referans göstererek tek seferde başlatın:
+Ardından Docker konteynerini bu `.env` dosyasını referans göstererek tek seferde başlatın (ev dizininizdeki `.hermes` klasörünü kalıcı veri saklama için bağlamayı unutmayın):
 ```bash
-docker run -d -p 7860:7860 -p 7861:7861 --env-file .env my-hermes-agent
+docker run -d -p 7860:7860 -p 7861:7861 -v "$HOME/.hermes:/home/user/.hermes" --env-file .env my-hermes-agent
 ```
 
 #### 📦 Docker'da `.env` İçe Aktarımı ve Detaylı Çalışma Prensibi
@@ -322,8 +323,8 @@ Geliştirdiğimiz entegre çözüm sayesinde:
 # Adım 2: Docker imajını güvenle derleyin (gizli anahtarlar imaja gömülmez)
 docker build -t my-hermes-agent .
 
-# Adım 3: .env dosyasını --env-file ile referans göstererek konteyneri çalıştırın
-docker run -d --name hermes -p 7860:7860 -p 7861:7861 --env-file .env my-hermes-agent
+# Adım 3: .env dosyasını --env-file ile referans göstererek ve ev dizinindeki .hermes klasörünü bağlayarak konteyneri çalıştırın
+docker run -d --name hermes -p 7860:7860 -p 7861:7861 -v "$HOME/.hermes:/home/user/.hermes" --env-file .env my-hermes-agent
 ```
 
 ---

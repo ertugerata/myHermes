@@ -191,7 +191,7 @@ else
     echo -e "=========================================================${NC}"
     echo -e "Yerel Docker ortamında çalıştırmak için aşağıdaki komutu kullanabilirsiniz:"
     echo -e "  ${CYAN}docker build -t my-hermes-agent .${NC}"
-    echo -e "  ${CYAN}docker run -d --name hermes -p $app_port:$app_port --env-file .env my-hermes-agent${NC}"
+    echo -e "  ${CYAN}mkdir -p \"\$HOME/.hermes\" && docker run -d --name hermes -p $app_port:$app_port -v \"\$HOME/.hermes:/home/user/.hermes\" --env-file .env my-hermes-agent${NC}"
     echo
     echo -e "Arayüze ${BOLD}http://localhost:$app_port${NC} adresinden ulaşabilirsiniz."
     echo -e "Kullanıcı Adı: ${CYAN}$db_username${NC}"
@@ -210,7 +210,8 @@ else
         fi
 
         echo -e "${YELLOW}Konteyner Başlatılıyor...${NC}"
-        docker run -d --name hermes -p "$app_port:$app_port" --env-file "$ENV_FILE" my-hermes-agent
+        mkdir -p "$HOME/.hermes"
+        docker run -d --name hermes -p "$app_port:$app_port" -v "$HOME/.hermes:/home/user/.hermes" --env-file "$ENV_FILE" my-hermes-agent
         echo -e "${GREEN}${BOLD}✔ Konteyner başarıyla arka planda başlatıldı!${NC}"
         echo -e "Arayüze erişmek için: ${BLUE}${BOLD}http://localhost:$app_port${NC}"
     fi
