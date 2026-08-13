@@ -12,6 +12,9 @@ if docker ps -a --format '{{.Names}}' | grep -Eq "^hermes$"; then
 fi
 
 echo "Hermes Agent konteyneri başlatılıyor..."
+# Yerel ev dizinindeki .hermes klasörünün otomatik oluşturulduğundan emin olun
+mkdir -p "$HOME/.hermes"
+
 docker run -d \
   --name hermes \
   -p 7860:7860 \
@@ -19,7 +22,7 @@ docker run -d \
   -e OPENROUTER_API_KEY=... \
   -e HERMES_DASHBOARD_BASIC_AUTH_USERNAME=admin \
   -e HERMES_DASHBOARD_BASIC_AUTH_PASSWORD=93Xwm7eraq \
-  -v hermes-data:/home/user/.hermes \
+  -v "$HOME/.hermes:/home/user/.hermes" \
   --env-file .env \
   my-hermes-agent
 
