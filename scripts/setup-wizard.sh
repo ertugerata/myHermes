@@ -186,12 +186,29 @@ if [ "$target_env" = "1" ]; then
     echo -e "💡 Bu sırları ve değişkenleri girdikten sonra Spaces uygulamanız otomatik"
     echo -e "yeniden derlenip güvenli bir şekilde başlayacaktır."
 else
-    echo -e "${GREEN}${BOLD}========================================================="
+    echo -e "${BLUE}${BOLD}[Adım 5/5] Veri Saklama (Volume Mount) Tercihi${NC}"
+    echo "Konteyner verilerinizin (sohbet geçmişi ve ayarlar) nerede saklanmasını istersiniz?"
+    echo -e "  ${GREEN}1)${NC} Yerel Ev Dizini (Host üzerindeki ~/.hermes klasörünü bağlar - Önerilen)"
+    echo -e "  ${GREEN}2)${NC} Docker Hacmi (hermes-data adında izole bir Docker Named Volume kullanır)"
+    read -rp "Seçiminiz (1-2) [Varsayılan: 1]: " vol_choice
+    vol_choice=${vol_choice:-1}
+
+    if [ "$vol_choice" = "1" ]; then
+        DOCKER_VOL_CMD="mkdir -p \"\$HOME/.hermes\" && docker run -d --name hermes -p $app_port:$app_port -v \"\$HOME/.hermes:/home/user/.hermes\" --env-file .env my-hermes-agent"
+        DOCKER_VOL_RUN_PRE="mkdir -p \"\$HOME/.hermes\""
+        DOCKER_VOL_RUN_CMD="docker run -d --name hermes -p \"$app_port:$app_port\" -v \"\$HOME/.hermes:/home/user/.hermes\" --env-file \"\$ENV_FILE\" my-hermes-agent"
+    else
+        DOCKER_VOL_CMD="docker run -d --name hermes -p $app_port:$app_port -v hermes-data:/home/user/.hermes --env-file .env my-hermes-agent"
+        DOCKER_VOL_RUN_PRE="true"
+        DOCKER_VOL_RUN_CMD="docker run -d --name hermes -p \"$app_port:$app_port\" -v hermes-data:/home/user/.hermes --env-file \"\$ENV_FILE\" my-hermes-agent"
+    fi
+
+    echo -e "\n${GREEN}${BOLD}========================================================="
     echo "   YEREL DOCKER - ÇALIŞTIRMA REHBERİ"
     echo -e "=========================================================${NC}"
     echo -e "Yerel Docker ortamında çalıştırmak için aşağıdaki komutu kullanabilirsiniz:"
     echo -e "  ${CYAN}docker build -t my-hermes-agent .${NC}"
-    echo -e "  ${CYAN}mkdir -p \"\$HOME/.hermes\" && docker run -d --name hermes -p $app_port:$app_port -v \"\$HOME/.hermes:/home/user/.hermes\" --env-file .env my-hermes-agent${NC}"
+    echo -e "  ${CYAN}$DOCKER_VOL_CMD${NC}"
     echo
     echo -e "Arayüze ${BOLD}http://localhost:$app_port${NC} adresinden ulaşabilirsiniz."
     echo -e "Kullanıcı Adı: ${CYAN}$db_username${NC}"
@@ -210,8 +227,8 @@ else
         fi
 
         echo -e "${YELLOW}Konteyner Başlatılıyor...${NC}"
-        mkdir -p "$HOME/.hermes"
-        docker run -d --name hermes -p "$app_port:$app_port" -v "$HOME/.hermes:/home/user/.hermes" --env-file "$ENV_FILE" my-hermes-agent
+        eval "$DOCKER_VOL_RUN_PRE"
+        eval "$DOCKER_VOL_RUN_CMD"
         echo -e "${GREEN}${BOLD}✔ Konteyner başarıyla arka planda başlatıldı!${NC}"
         echo -e "Arayüze erişmek için: ${BLUE}${BOLD}http://localhost:$app_port${NC}"
     fi

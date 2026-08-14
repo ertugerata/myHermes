@@ -11,10 +11,22 @@ if docker ps -a --format '{{.Names}}' | grep -Eq "^hermes$"; then
     docker rm hermes >/dev/null 2>&1 || true
 fi
 
-echo "Hermes Agent konteyneri başlatılıyor..."
-# Yerel ev dizinindeki .hermes klasörünün otomatik oluşturulduğundan emin olun
-mkdir -p "$HOME/.hermes"
+echo "Veri saklama (Volume Mount) yöntemini seçin:"
+echo "  1) Yerel Ev Dizini (Host üzerindeki ~/.hermes klasörünü bağlar - Önerilen)"
+echo "  2) Docker Hacmi (hermes-data adında izole bir Docker Named Volume kullanır)"
+read -rp "Seçiminiz (1-2) [Varsayılan: 1]: " volume_choice
+volume_choice=${volume_choice:-1}
 
+if [ "$volume_choice" = "1" ]; then
+  echo "✔ Yerel ev dizini (~/.hermes) kullanılacak."
+  mkdir -p "$HOME/.hermes"
+  VOLUME_MOUNT="-v $HOME/.hermes:/home/user/.hermes"
+else
+  echo "✔ Docker Hacmi (hermes-data) kullanılacak."
+  VOLUME_MOUNT="-v hermes-data:/home/user/.hermes"
+fi
+
+echo "Hermes Agent konteyneri başlatılıyor..."
 docker run -d \
   --name hermes \
   -p 7860:7860 \
@@ -22,7 +34,7 @@ docker run -d \
   -e OPENROUTER_API_KEY=... \
   -e HERMES_DASHBOARD_BASIC_AUTH_USERNAME=admin \
   -e HERMES_DASHBOARD_BASIC_AUTH_PASSWORD=93Xwm7eraq \
-  -v "$HOME/.hermes:/home/user/.hermes" \
+  $VOLUME_MOUNT \
   --env-file .env \
   my-hermes-agent
 
