@@ -93,7 +93,7 @@ do_git_backup() {
     git config user.name "Hermes Backup Bot"
     git config user.email "hermes-backup-bot@users.noreply.github.com"
 
-    # Ensure .gitignore exists inside the repo to ignore large binaries
+    # Ensure .gitignore exists inside the repo to ignore large binaries and sensitive files
     cat << 'EOF' > .gitignore
 # Large binary runtimes and environments
 .hermes/bin/
@@ -104,10 +104,14 @@ do_git_backup() {
 *.log
 *.tmp
 *.lock
+
+# Environment and sensitive credential files
+.env
+.env*
 EOF
 
-    # Untrack any accidentally tracked large files/directories
-    git rm -r --cached .hermes/bin .hermes/node .hermes/hermes-agent .hermes/venv .hermes/node_modules 2>/dev/null || true
+    # Untrack any accidentally tracked large files/directories or sensitive env files
+    git rm -r --cached .hermes/bin .hermes/node .hermes/hermes-agent .hermes/venv .hermes/node_modules .env .env* 2>/dev/null || true
     git add .
 
     # Check if there are changes to commit
