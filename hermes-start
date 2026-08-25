@@ -4,6 +4,15 @@
 # Bu betik, gereksiz portları kapatılmış ve optimize edilmiş olarak
 # Hermes Agent docker konteynerini arka planda başlatır.
 
+# .env dosyası yoksa dur ve kullanıcıyı bilgilendir
+if [ ! -f ".env" ]; then
+    echo "❌ HATA: .env dosyası bulunamadı!"
+    echo "    Lütfen önce 'bash scripts/setup-wizard.sh' komutunu çalıştırın"
+    echo "    ya da OPENROUTER_API_KEY, HERMES_DASHBOARD_BASIC_AUTH_USERNAME ve"
+    echo "    HERMES_DASHBOARD_BASIC_AUTH_PASSWORD değerlerini içeren bir .env dosyası oluşturun."
+    exit 1
+fi
+
 # Varsa eski konteyneri durdur ve sil
 if docker ps -a --format '{{.Names}}' | grep -Eq "^hermes$"; then
     echo "Eski 'hermes' konteyneri durduruluyor ve kaldırılıyor..."
@@ -31,7 +40,6 @@ docker run -d \
   --name hermes \
   -p 7860:7860 \
   -p 7861:7861 \
-  -e OPENROUTER_API_KEY=... \
   $VOLUME_MOUNT \
   --env-file .env \
   my-hermes-agent
