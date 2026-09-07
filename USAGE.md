@@ -1,6 +1,30 @@
 # MyHermes Projesi - Detaylı Kullanım Kılavuzu (USAGE.md)
 
-Bu kılavuz, **Hermes Agent** web arayüzünün (Dashboard) Hugging Face Spaces veya yerel bir Docker ortamında nasıl kurulacağını, çalıştırılacağını, gelişmiş ağ (DNS) çözümlerini, güvenlik yapılandırmalarını, yedekleme mekanizmasını, **`config.yaml` yapılandırmasının nasıl yüklendiğini**, **beceri (skills) klasörlerinin nasıl bağlandığını (volume)** ve **`mcuadros/ofelia` zamanlayıcısı ile otomatik görev çalıştırmayı** detaylandırmaktadır.
+Bu kılavuz, **Hermes Agent** web arayüzünün (Dashboard) Hugging Face Spaces veya yerel bir Docker ortamında nasıl kurulacağını, çalıştırılacağını, gelişmiş ağ (DNS) çözümlerini, güvenlik yapılandırmalarını, yedekleme mekanizmasını, **önceden yapılan ayarların ve verilerin nasıl korunduğunu (State Preservation)**, **`config.yaml` yapılandırmasının nasıl yüklendiğini**, **beceri (skills) klasörlerinin nasıl bağlandığını (volume)** ve **`mcuadros/ofelia` zamanlayıcısı ile otomatik görev çalıştırmayı** detaylandırmaktadır.
+
+---
+
+## 🛡️ Önceden Yapılan Ayarların ve Verilerin Korunması (State Preservation)
+
+Hermes Agent üzerinde yaptığınız özelleştirmelerin, geçmiş sohbet verilerinin, kayıtlı ayarların (`config.yaml`), API anahtarlarının ve yüklenen becerilerin (skills) korunması şu 3 temel mekanizma ile garanti altına alınır:
+
+### 1. Veri Saklama Yöntemi Seçimi (Data Volume vs. Local Directory)
+Kurulum sihirbazı (`scripts/setup-wizard.sh`) veya `hermes-start` betiği üzerinden verilerinizin saklanacağı yöntemi seçebilirsiniz:
+- **Seçenek A: Yerel Ev Dizini (Local Host Directory - `$HOME/.hermes`):**
+  Host makinenizdeki `~/.hermes` dizinini konteyner içindeki `/home/user/.hermes` konumuna bağlar. Konteyner silinse veya baştan derlense dahi verileriniz bilgisayarınızda kalıcı olarak saklanır.
+- **Seçenek B: Docker Hacmi (Docker Named Volume - `hermes-data`):**
+  Docker tarafından yönetilen izole bir hacim kullanılır. Konteyner güncellemelerinde veri kaybı yaşanmaz.
+
+### 2. GitHub Otomatik Yedekleme ve Geri Yükleme (Automatic Backup & Restore)
+Konteyner her başlatıldığında `scripts/start.sh` önceden yapılandırılmış GitHub yedek deponuzdan (`GITHUB_BACKUP_REPO` ve `GITHUB_TOKEN`) verileri indirir.
+- `.hermes` veritabanı, oturum geçmişleri ve `config.yaml` dosyası otomatik geri yüklenir.
+- Sistem her 2 saatte bir ve konteyner durdurulurken (`SIGTERM`) güncel durumu GitHub deponuza geri push eder.
+
+### 3. Versiyon Güncelleme Entegrasyonu (`scripts/update-version.sh`)
+Uygulama sürümünü güncellerken verilerinizin veya özelleştirilmiş ayarlarınızın silinmesi söz konusu değildir:
+- `VERSION.txt` dosyası üzerinden Hermes imaj sürümü güncellenir.
+- `scripts/update-version.sh` betiği `Dockerfile` içerisindeki `ARG HERMES_VERSION` değerini günceller.
+- Konteyner yeniden derlendiğinde (`docker-compose up -d --build` veya `docker build`), verileriniz bağlı olan hacim (`$HOME/.hermes` veya `hermes-data`) ya da GitHub yedeği sayesinde **birebir korunarak aktarılır**.
 
 ---
 
@@ -19,20 +43,24 @@ Bu proje, Hermes Agent'ın TUI (Terminal Kullanıcı Arayüzü) ekranına web ta
 | **Kontrol Paneli (Dashboard)** | `7860` | `http://localhost:7860` | Web yönetim arayüzü, sohbet, eklentiler ve genel konfigürasyon. |
 | **TUI Web Terminali** | `7861` | `http://localhost:7861` | Tarayıcı üzerinden tam özellikli terminal TUI (Kanban panosu, Temsilci listesi, Oturum geçmişi ve sistem widget'ları). |
 
-> 💡 **Hugging Face Spaces Ayarı:** Hugging Face Spaces üzerinde dağıtırken her iki porttan da yararlanabilmek için **Settings -> Repository -> Ports** bölümüne `7860, 7861` portlarını eklediğinizden emin olun.
-
 ---
 
-#### ⚙️ Supervisord Süreç Yapılandırması ve Sıralı Başlatma
+## 🧙‍♂️ İnteraktif Kurulum Sihirbazı Entegrasyonu (`scripts/setup-wizard.sh`)
 
-Konteyner başlatıldığında supervisord, aşağıdaki süreçleri hiyerarşik öncelik (priority) değerlerine göre sırasıyla ve güvenli bir şekilde çalıştırır:
+Sihirbaz betiği, veri koruma tercihleriniz ile zamanlayıcı servislerini tek bir akışta entegre eder:
 
-1. **`dns-resolve` (Öncelik: 10):** DoH (DNS-over-HTTPS) ön çözümleme servisini başlatarak engelli alan adlarını tespit eder.
-2. **`github-restore` (Öncelik: 20):** Başlangıçta varsa GitHub üzerindeki `.hermes` yedeklerinizi geri yükler.
-3. **`auth-config` (Öncelik: 30):** Çevre değişkenlerinden gelen dashboard giriş bilgilerini ve kimlik doğrulama eklentisini güvenle hazırlar.
-4. **`hermes-dashboard` (Öncelik: 40):** 7860 portunda çalışacak olan ana kontrol panelini ayağa kaldırır.
-5. **`hermes-tui-web` (Öncelik: 50):** 7861 portu üzerinden ttyd terminali ile `hermes --tui` TUI arayüzünü tarayıcılara sunar.
-6. **`backup-loop` (Öncelik: 60):** Her 2 saatte bir değişen verileri algılayarak GitHub yedek deposuna push eder.
+```bash
+./scripts/setup-wizard.sh
+```
+
+Sihirbaz şu adımları otomatik yönetir:
+1. **Hedef Ortam Seçimi:** Hugging Face Spaces veya Yerel Docker.
+2. **Kimlik Doğrulama & API Key Tanımlama:** `.env` dosyasına güvenli kayıt.
+3. **GitHub Yedekleme Kurulumu:** Otomatik geri yükleme/yedekleme bağlantısı.
+4. **Veri Saklama Yöntemi Seçimi:** `$HOME/.hermes` (Yerel dizin) veya `hermes-data` (Docker Hacmi).
+5. **Otomatik Çalıştırma Tercihi:**
+   - **Docker Compose (Önerilen):** Hermes Agent ve `mcuadros/ofelia` zamanlayıcısını birlikte başlatır.
+   - **Docker run:** Sadece Hermes Agent konteynerini başlatır.
 
 ---
 
@@ -147,14 +175,6 @@ command = /opt/hermes/.venv/bin/hermes run --skill pdf-summarizer "PDF Summarize
 
 ---
 
-## 🧙‍♂️ İnteraktif Kurulum Sihirbazı (Önerilen)
-Konteynerinizi çalıştırmadan önce tüm ayarlarınızı interaktif ve kolay bir şekilde yapılandırmak isterseniz, sizin için hazırladığımız Türkçe kurulum sihirbazını yerel ortamınızda çalıştırabilirsiniz:
-```bash
-./scripts/setup-wizard.sh
-```
-
----
-
 ## Yerel Ortamda Docker ile Çalıştırma
 
 ### Docker Compose ile Çalıştırma (Ofelia Zamanlayıcı Dahil - Önerilen):
@@ -163,29 +183,5 @@ Konteynerinizi çalıştırmadan önce tüm ayarlarınızı interaktif ve kolay 
 git submodule update --init --recursive
 
 # Docker Compose ile Hermes ve Ofelia servislerini başlatın
-docker-compose up -d
+docker-compose up -d --build
 ```
-
----
-
-## 🔒 Güvenlik ve Dinamik Kimlik Doğrulama (Authentication)
-
-Dış dünyaya açık (kamusal IP'ye veya `0.0.0.0` adresine bağlanan) tüm Hermes Dashboard arayüzlerinde kimlik doğrulama yapılması zorunludur.
-
----
-
-## 🌐 Gelişmiş Ağ ve DNS-over-HTTPS (DoH) Çözümü
-
-Hugging Face Spaces gibi kısıtlı konteyner ortamlarında engelli alan adlarını aşmak için DoH çözümü otomatik devreye girer.
-
----
-
-## 💾 GitHub ile Otomatik Yedekleme ve Geri Yükleme (Backup & Restore)
-
-Uygulamanın oturum geçmişi, veritabanı ve ayarları (`.hermes` dizini ve `config.yaml` dosyası) GitHub depolarına otomatik yedeklenir.
-
----
-
-## 🔑 Çevre Değişkenleri (Environment Variables) ve Sırlar (Secrets)
-
-Uygulamanın çalışması için gerekli çevre değişkenleri ve API anahtarları hakkında detaylı bilgiler yukarıdaki bölümlerde açıklanmıştır.
