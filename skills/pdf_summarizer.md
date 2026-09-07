@@ -56,3 +56,8 @@ Rapor aşağıdaki standart şablona sahip olmalıdır:
 1. Dökümanın belirlenen kategorisine denk gelen klasörü `/Bilgi_Tabani/03_Akilli_Raflar/#Kategori_Adı/` dizini altında oluştur veya var olanı kullan.
 2. Üretilen Markdown özet raporunu (`.md`) ilgili kategori klasörüne yerleştir.
 3. Orijinal PDF / döküman dosyasını `/Bilgi_Tabani/02_Okuma_Listesi/` dizininden alıp ilgili kategori klasörüne taşı.
+
+### 5. Bildirim Gönderme (Buzz Kanalı)
+1. Özetleme ve raf düzenleme işlemleri tamamlandıktan sonra, özet raporunun hazırlandığına dair bir bildirim mesajı oluştur.
+2. Bildirim mesajında dosya adı, kategori rafı, işlenme tarihi ve kısa özet bilgisi yer almalıdır.
+3. Bu bildirimi **Buzz kanalı** (hermes-in-buzz / buzz-skills) üzerinden ilgili kanala / kullanıcıya gönder.
