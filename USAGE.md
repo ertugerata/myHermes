@@ -229,10 +229,8 @@ services:
       - "7861:7861"
     volumes:
       - hermes-data:/home/user/.hermes
-      - ./skills:/home/user/.hermes/skills
       - ./skills:/home/user/app/skills
       - ./buzz-skills:/home/user/app/buzz-skills
-      - ./buzz-skills:/home/user/.hermes/skills/buzz-skills
     restart: always
 
   ofelia:
