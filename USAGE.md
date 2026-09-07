@@ -1,6 +1,6 @@
 # MyHermes Projesi - Detaylı Kullanım Kılavuzu (USAGE.md)
 
-Bu kılavuz, **Hermes Agent** web arayüzünün (Dashboard) Hugging Face Spaces veya yerel bir Docker ortamında nasıl kurulacağını, çalıştırılacağını, gelişmiş ağ (DNS) çözümlerini, güvenlik yapılandırmalarını, yedekleme mekanizmasını, **önceden yapılan ayarların ve verilerin nasıl korunduğunu (State Preservation)**, **`config.yaml` yapılandırmasının nasıl yüklendiğini**, **beceri (skills) klasörlerinin nasıl bağlandığını (volume)** ve **`mcuadros/ofelia` zamanlayıcısı ile otomatik görev çalıştırmayı** detaylandırmaktadır.
+Bu kılavuz, **Hermes Agent** web arayüzünün (Dashboard) Hugging Face Spaces veya yerel bir Docker ortamında nasıl kurulacağını, çalıştırılacağını, gelişmiş ağ (DNS) çözümlerini, güvenlik yapılandırmalarını, yedekleme mekanizmasını, **önceden yapılan ayarların ve verilerin nasıl korunduğunu (State Preservation)**, **`config.yaml` yapılandırmasının nasıl yüklendiğini**, **beceri (skills) klasörlerinin nasıl bağlandığını (volume)**, **`buzz-skills` entegrasyonu ve kullanımını** ve **`mcuadros/ofelia` zamanlayıcısı ile otomatik görev çalıştırmayı** detaylandırmaktadır.
 
 ---
 
@@ -82,11 +82,64 @@ Hermes Agent çalışma zamanında konfigürasyon dosyasını varsayılan olarak
 
 ---
 
-## 🛠️ Beceri (Skills) Yönetimi, Volume Bağlantıları ve `buzz-skills` Entegrasyonu
+## 🐝 `buzz-skills` Entegrasyonu ve Hermes Tarafından Kullanımı
+
+Projeye Git Submodule olarak eklenen `buzz-skills` (`https://github.com/tonbistudio/buzz-skills`), Hermes Agent'ın Buzz platformu (Nostr tabanlı mesajlaşma ağı) ile uçtan uca haberleşmesini, medya eklentilerini ve bildirimleri yönetmesini sağlar.
+
+### 1. `buzz-skills` İçeriği ve Beceriler
+- **`hermes-in-buzz`**: Hermes Agent gateway'ini Buzz relay ağına bağlar, gelen mesajları dinler ve yanıtlar üretir.
+- **`buzz-media-attachments`**: Buzz mesajlarındaki medya dosyalarını ve ekleri işler.
+- **`buzz-self-hosting`**: Kendi Buzz relay ve sunucu altyapınızı barındırma yönergelerini içerir.
+
+### 2. Hermes Tarafından Otomatik Algılanması
+`docker-compose.yml` içinde `./buzz-skills` klasörü hem `/home/user/app/buzz-skills` hem de `/home/user/.hermes/skills/buzz-skills` konumlarına volume olarak bağlanmıştır. Ayrıca `config.yaml` dosyasında `skills.external_dirs` altına eklenmiştir:
+
+```yaml
+skills:
+  external_dirs:
+  - /home/user/app/buzz-skills
+  - /home/user/.hermes/skills/buzz-skills
+```
+
+### 3. Gerekli Ayarlar ve Yapılandırma
+
+Buzz entegrasyonunun çalışması için gereken ayarlar `config.yaml` veya `.env` dosyası üzerinden şu şekilde tanımlanır:
+
+#### A. Konfigürasyon Ayarları (`config.yaml` veya `hermes config set`):
+```yaml
+gateway:
+  platforms:
+    buzz:
+      enabled: true
+      extra:
+        relay_url: "wss://relay.buzz.community"  # Buzz Relay adresi
+        cli_path: "/usr/local/bin/buzz"           # Buzz CLI binary yolu
+        channels: ["<CHANNEL_UUID>"]              # Dinlenecek kanal ID'leri
+        home_channel: "<HOME_CHANNEL_UUID>"       # Bildirimlerin gönderileceği ana kanal ID'si
+        require_mention: true                      # Yalnızca etiketlenince yanıt ver
+        allow_all_users: false                    # Sadece izinli kullanıcılara yanıt ver
+        allowed_users: ["<OWNER_NPUB>"]           # İzin verilen kullanıcı npub/hex adresi
+```
+
+#### B. Kimlik Bilgileri ve Sırlar (`.env`):
+Hermes Agent'ın Buzz üzerinde oturum açabilmesi için dedicated agent private key ve auth tag değerleri `.env` veya Hermes secrets içinde tanımlanır:
+```env
+BUZZ_PRIVATE_KEY="nsec1..."      # Ajanın özel anahtarı (Asla kişisel nsec kullanmayın!)
+BUZZ_AUTH_TAG='["auth", ...]'    # NIP-OA attestation tag (Gerekli ise)
+```
+
+### 4. PDF Summarizer İçinde Buzz Kullanımı
+`pdf-summarizer` skill'i çalışma sonunda özet hazırlandığında bildirim göndermek için Buzz altyapısını kullanır:
+1. PDF özeti ve akıllı raf düzenleme işlemi biter.
+2. Hermes Agent `hermes-in-buzz` kanalı üzerinden `gateway.platforms.buzz.extra.home_channel` veya ilgili kanala özet raporunun hazır olduğuna dair bildirim mesajı yayınlar.
+
+---
+
+## 🛠️ Beceri (Skills) Yönetimi ve Volume Bağlantıları
 
 Hermes Agent'ın becerileri (skills) algılaması ve harici beceri depolarını sorunsuz çalıştırabilmesi için volume ve konfigürasyon entegrasyonu yapılmıştır.
 
-### 1. Skill Klasörlerinin Volume Olarak Tanımlanması (`docker-compose.yml`)
+### Skill Klasörlerinin Volume Olarak Tanımlanması (`docker-compose.yml`)
 Yerel geliştirme ve konteyner ortamında yeni becerilerin anında algılanması ve kod değişikliklerinin konteyner içine yansıması için `docker-compose.yml` içerisinde klasörler volume olarak bağlanmıştır:
 
 ```yaml
@@ -121,29 +174,6 @@ volumes:
   hermes-data:
 ```
 
-### 2. Harici Skill Dizinlerinin `config.yaml` ile Tanımlanması
-Hermes Agent'ın bu dizinlerdeki tüm becerileri tarayabilmesi için `config.yaml` içindeki `skills.external_dirs` alanına hedefler eklenmiştir:
-
-```yaml
-skills:
-  creation_nudge_interval: 15
-  disabled: []
-  external_dirs:
-  - /home/user/app/skills
-  - /home/user/.hermes/skills
-  - /home/user/app/buzz-skills
-  - /home/user/.hermes/skills/buzz-skills
-```
-
-### 3. Git Submodule Entegrasyonu (`buzz-skills`)
-`buzz-skills` reposu projeye bir Git submodule olarak eklenmiştir (`.gitmodules`):
-```ini
-[submodule "buzz-skills"]
-	path = buzz-skills
-	url = https://github.com/tonbistudio/buzz-skills
-```
-Bu sayede `git submodule update --init --recursive` komutu ile tüm Buzz becerileri otomatik çekilir ve `docker-compose` volume bağlantısı sayesinde Hermes Agent tarafından anında kullanılabilir hale gelir.
-
 ---
 
 ## ⏰ `mcuadros/ofelia` Zamanlayıcı ve PDF Summarizer Otomasyonu
@@ -171,7 +201,7 @@ command = /opt/hermes/.venv/bin/hermes run --skill pdf-summarizer "PDF Summarize
 1. **Dosya Tarama:** `/Bilgi_Tabani/02_Okuma_Listesi/` altındaki yeni PDF/dökümanları tespit eder.
 2. **Derin Analiz & Türkçe Özet:** Dökümanı analiz edip standart şablon ile akademik Türkçe özet `.md` raporu oluşturur.
 3. **Akıllı Raf Düzenleme:** Dosyayı ve özetini `/Bilgi_Tabani/03_Akilli_Raflar/#Kategori_Adı/` dizinine taşır.
-4. **Buzz Kanalı Bildirimi:** Özet tamamlandığında hazırlanan özetin durumunu **Buzz kanalı** üzerinden kullanıcıya bildirir.
+4. **Buzz Kanalı Bildirimi:** Özet tamamlandığında hazırlanan özetin durumunu **Buzz kanalı** (`hermes-in-buzz`) üzerinden kullanıcıya bildirir.
 
 ---
 
