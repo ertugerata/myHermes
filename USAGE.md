@@ -1,6 +1,6 @@
 # MyHermes Projesi - Detaylı Kullanım Kılavuzu (USAGE.md)
 
-Bu kılavuz, **Hermes Agent** web arayüzünün (Dashboard) Hugging Face Spaces veya yerel bir Docker ortamında nasıl kurulacağını, çalıştırılacağını, gelişmiş ağ (DNS) çözümlerini, güvenlik yapılandırmalarını, yedekleme mekanizmasını ve **gerekli API anahtarlarının nasıl tanımlanacağını** detaylandırmaktadır.
+Bu kılavuz, **Hermes Agent** web arayüzünün (Dashboard) Hugging Face Spaces veya yerel bir Docker ortamında nasıl kurulacağını, çalıştırılacağını, gelişmiş ağ (DNS) çözümlerini, güvenlik yapılandırmalarını, yedekleme mekanizmasını, **önceden yapılan ayarların ve verilerin nasıl korunduğunu (State Preservation)**, **`config.yaml` yapılandırmasının nasıl yüklendiğini**, **beceri (skills) klasörlerinin nasıl bağlandığını (volume)**, **`buzz-skills` (Kendi Özel Relay'iniz veya Genel Relay) kullanımı** ve **`mcuadros/ofelia` zamanlayıcısı ile otomatik görev çalıştırmayı** detaylandırmaktadır.
 
 ---
 
@@ -29,7 +29,7 @@ Konteyner başlatıldığında supervisord, aşağıdaki süreçleri hiyerarşik
 
 1. **`dns-resolve` (Öncelik: 10):** DoH (DNS-over-HTTPS) ön çözümleme servisini başlatarak engelli alan adlarını tespit eder.
 2. **`github-restore` (Öncelik: 20):** Başlangıçta varsa GitHub üzerindeki `.hermes` yedeklerinizi geri yükler.
-3. **`auth-config` (Öncelik: 30):** Çevre değişkenlerinden gelen dashboard giriş bilgilerini ve kimlik doğrulama eklentisini güvenle hazırlar.
+3. **`auth-config` (Öncelik: 30):** Çevre değişkenlerinden gelen dashboard giriş bilgilerini, Buzz platform ayarlarını ve kimlik doğrulama eklentisini güvenle hazırlar.
 4. **`hermes-dashboard` (Öncelik: 40):** 7860 portunda çalışacak olan ana kontrol panelini ayağa kaldırır.
 5. **`hermes-tui-web` (Öncelik: 50):** 7861 portu üzerinden ttyd terminali ile `hermes --tui` TUI arayüzünü tarayıcılara sunar.
 6. **`backup-loop` (Öncelik: 60):** Her 2 saatte bir değişen verileri algılayarak GitHub yedek deposuna push eder.
@@ -51,73 +51,64 @@ supervisorctl tail -f hermes-dashboard
 
 ---
 
-### 🧙‍♂️ İnteraktif Kurulum Sihirbazı (Önerilen)
-Konteynerinizi çalıştırmadan önce tüm ayarlarınızı interaktif ve kolay bir şekilde yapılandırmak isterseniz, sizin için hazırladığımız Türkçe kurulum sihirbazını yerel ortamınızda çalıştırabilirsiniz:
-```bash
-./scripts/setup-wizard.sh
-```
-Bu sihirbaz size adım adım rehberlik ederek:
-- Dashboard yönetici adı ve şifresi belirlemenizi (veya otomatik güvenli şifre üretilmesini),
-- Gerekli tüm yapay zeka API anahtarlarını (OpenRouter, OpenAI, Anthropic, DeepSeek, Groq vb.) girmenizi,
-- GitHub otomatik yedekleme sistemini (depo adresi, PAT token ve periyot) kolayca kurmanuzu sağlayacaktır.
+## 🛡️ Önceden Yapılan Ayarların ve Verilerin Korunması (State Preservation)
 
-Seçtiğiniz hedef ortama göre (Yerel Docker veya Hugging Face Spaces):
-- **Hugging Face Spaces** için hangi Secret ve Variable değerlerini Hugging Face arayüzüne kopyalamanız gerektiğini gösteren şık bir rehber sunar.
-- **Yerel Docker** için gerekli tüm değişkenleri otomatik olarak kök dizinde `.env` dosyasına yazar ve isteğinize bağlı olarak Docker imajını derleyip konteynerinizi arka planda anında çalıştırır.
+Hermes Agent üzerinde yaptığınız özelleştirmelerin, geçmiş sohbet verilerinin, kayıtlı ayarların (`config.yaml`), API anahtarlarının ve yüklenen becerilerin (skills) korunması şu 3 temel mekanizma ile garanti altına alınır:
+
+### 1. Veri Saklama Yöntemi Seçimi (Data Volume vs. Local Directory)
+Kurulum sihirbazı (`scripts/setup-wizard.sh`) veya `hermes-start` betiği üzerinden verilerinizin saklanacağı yöntemi seçebilirsiniz:
+- **Seçenek A: Yerel Ev Dizini (Local Host Directory - `$HOME/.hermes`):**
+  Host makinenizdeki `~/.hermes` dizinini konteyner içindeki `/home/user/.hermes` konumuna bağlar. Konteyner silinse veya baştan derlense dahi verileriniz bilgisayarınızda kalıcı olarak saklanır.
+- **Seçenek B: Docker Hacmi (Docker Named Volume - `hermes-data`):**
+  Docker tarafından yönetilen izole bir hacim kullanılır. Konteyner güncellemelerinde veri kaybı yaşanmaz.
+
+### 2. GitHub Otomatik Yedekleme ve Geri Yükleme (Automatic Backup & Restore)
+Konteyner her başlatıldığında `scripts/start.sh` önceden yapılandırılmış GitHub yedek deponuzdan (`GITHUB_BACKUP_REPO` ve `GITHUB_TOKEN`) verileri indirir.
+- `.hermes` veritabanı, oturum geçmişleri ve `config.yaml` dosyası otomatik geri yüklenir.
+- Sistem her 2 saatte bir ve konteyner durdurulurken (`SIGTERM`) güncel durumu GitHub deponuza geri push eder.
+
+### 3. Versiyon Güncelleme Entegrasyonu (`scripts/update-version.sh`)
+Uygulama sürümünü güncellerken verilerinizin veya özelleştirilmiş ayarlarınızın silinmesi söz konusu değildir:
+- `VERSION.txt` dosyası üzerinden Hermes imaj sürümü güncellenir.
+- `scripts/update-version.sh` betiği `Dockerfile` içerisindeki `ARG HERMES_VERSION` değerini günceller.
+- Konteyner yeniden derlendiğinde (`docker-compose up -d --build` veya `docker build`), verileriniz bağlı olan hacim (`$HOME/.hermes` veya `hermes-data`) ya da GitHub yedeği sayesinde **birebir korunarak aktarılır**.
 
 ---
 
-### Yerel Ortamda Docker ile Çalıştırma
-Yerel makinenizde test etmek veya çalıştırmak için aşağıdaki adımları takip edebilirsiniz:
+## 🧙‍♂️ İnteraktif Kurulum Sihirbazı Entegrasyonu (`scripts/setup-wizard.sh`)
 
-1. **Sürümü Güncelleyin (Opsiyonel):**
-   Uygulamanın çalışacağı temel Hermes imajının sürümünü değiştirmek isterseniz, proje kökündeki `VERSION.txt` dosyasını düzenleyin ve ardından `scripts/update-version.sh` betiğini çalıştırın:
-   ```bash
-   # VERSION.txt dosyasını dilediğiniz sürüm ile güncelleyin (Örn: v2026.7.20)
-   ./scripts/update-version.sh
-   ```
-   Bu işlem, `Dockerfile` içindeki sürüm tanımını otomatik olarak güncelleyecektir. GitHub Actions (`hf-sync.yml`) iş akışı da `main` dalına yapılan push'larda bu işlemi otomatik olarak gerçekleştirir.
+Sihirbaz betiği, veri koruma tercihleriniz ile zamanlayıcı servislerini tek bir akışta entegre eder:
 
-   > 💡 **GitHub API Oran Limiti (Rate Limit) Hatası Giderme:**
-   > Eğer betiği çalıştırırken *"GitHub API'sine erişilemedi veya en son sürüm bilgisi alınamadı"* uyarısı alırsanız, bu durum anonim isteklerin saatlik sınırına ulaşıldığını gösterebilir. Çözüm için terminalde geçerli bir `GITHUB_TOKEN` veya `GH_TOKEN` tanımlayarak komutu tekrar çalıştırın:
-   > ```bash
-   > export GITHUB_TOKEN="ghp_senin_kisisel_erisim_tokenin"
-   > ./scripts/update-version.sh
-   > ```
+```bash
+./scripts/setup-wizard.sh
+```
 
-2. **Docker İmajını Derleyin:**
-   ```bash
-   docker build -t my-hermes-agent .
-   ```
+Sihirbaz şu adımları otomatik yönetir:
+1. **Hedef Ortam Seçimi:** Hugging Face Spaces veya Yerel Docker.
+2. **Kimlik Doğrulama & API Key Tanımlama:** `.env` dosyasına güvenli kayıt.
+3. **GitHub Yedekleme Kurulumu:** Otomatik geri yükleme/yedekleme bağlantısı.
+4. **Veri Saklama Yöntemi Seçimi:** `$HOME/.hermes` (Yerel dizin) veya `hermes-data` (Docker Hacmi).
+5. **Otomatik Çalıştırma Tercihi:**
+   - **Docker Compose (Önerilen):** Hermes Agent ve `mcuadros/ofelia` zamanlayıcısını birlikte başlatır.
+   - **Docker run:** Sadece Hermes Agent konteynerini başlatır.
 
-3. **Konteyneri Başlatın (Veri Saklama Yönteminize Göre):**
-   Verilerinizi yerel ev dizininizde mi yoksa izole bir Docker Named Volume içerisinde mi saklamak istediğinize göre aşağıdaki komutlardan birini seçebilirsiniz:
+---
 
-   * **Seçenek A: Yerel Ev Dizini (Önerilen - Host üzerindeki ~/.hermes klasörünü bağlar):**
-     ```bash
-     mkdir -p "$HOME/.hermes"
-     docker run -d \
-       -p 7860:7860 \
-       -p 7861:7861 \
-       -e OPENROUTER_API_KEY=... \
-       -e HERMES_DASHBOARD_BASIC_AUTH_USERNAME=admin \
-       -e HERMES_DASHBOARD_BASIC_AUTH_PASSWORD=GucluBirSifre123! \
-       -v "$HOME/.hermes:/home/user/.hermes" \
-       my-hermes-agent
-     ```
+## 📄 `config.yaml` Yapılandırma Dosyası Nasıl Yüklenir ve Dağıtılır?
 
-   * **Seçenek B: Docker Hacmi (hermes-data adında izole bir Docker Named Volume kullanır):**
-     ```bash
-     docker run -d \
-       -p 7860:7860 \
-       -p 7861:7861 \
-       -e OPENROUTER_API_KEY=... \
-       -e HERMES_DASHBOARD_BASIC_AUTH_USERNAME=admin \
-       -e HERMES_DASHBOARD_BASIC_AUTH_PASSWORD=GucluBirSifre123! \
-       -v hermes-data:/home/user/.hermes \
-       my-hermes-agent
-     ```
-   Ardından tarayıcınızda `http://localhost:7860` ile kontrol paneline, `http://localhost:7861` ile de Web TUI ekranına bağlanabilirsiniz.
+Hermes Agent çalışma zamanında konfigürasyon dosyasını varsayılan olarak `~/.hermes/config.yaml` (ve `~/.config/hermes/config.yaml`) konumunda arar. Projede `config.yaml` dosyasının sisteme yüklenmesi ve güncel tutulması şu mimari akışla gerçekleşir:
+
+1. **Kaynak Tanımı (`CONFIG_SRC`):**
+   - `Dockerfile` içerisinde `CONFIG_SRC=/home/user/app/config.yaml` çevre değişkeni tanımlanmıştır.
+2. **İmaj Derleme Aşaması (Build Time):**
+   - `Dockerfile` derlenirken kök dizindeki `config.yaml` hem `$HOME/.config/hermes/config.yaml` hem de `$HOME/.hermes/config.yaml` dizinlerine kopyalanır.
+3. **Başlangıç ve Dinamik Güncelleme (Runtime Distribution):**
+   - Konteyner ayağa kalkarken `scripts/start.sh` betiği çalışır.
+   - Betik önce `auth-config.py` ile çevre değişkenlerini (şifreler, auth eklentisi durumu, API anahtarları, Buzz platform ayarları) `config.yaml` üzerine işler.
+   - Ardından `config.yaml` dosyasını sistemdeki aktif konfigürasyon hedeflerine dinamik olarak dağıtır:
+     - `/home/user/.hermes/config.yaml`
+     - `/home/user/.config/hermes/config.yaml`
+   - Eğer GitHub yedekleme sistemi aktif ise ve depoda önceden kaydedilmiş bir `config.yaml` bulunuyorsa, restore işlemi sırasında bu dosya indirilir ve yine aynı hedeflere kopyalanarak uygulamanın özelleştirilmiş ayarları korunur.
 
 ---
 
@@ -127,18 +118,6 @@ Dış dünyaya açık (kamusal IP'ye veya `0.0.0.0` adresine bağlanan) tüm Her
 
 > ⚠️ **Önemli Bilgi:** `--insecure` parametresi artık pasiftir (deprecated / no-op) ve dışarıya açık bağlantılarda kimlik doğrulamayı devre dışı bırakmaz. Kamusal bağlantılarda her zaman geçerli bir kimlik doğrulama sağlayıcısı bulunmalıdır. Bu nedenle, gereksiz yük oluşturmaması ve uyarı vermemesi amacıyla `scripts/start.sh` dosyasından tamamen kaldırılmıştır.
 
-### 🛠️ Dinamik Kimlik Doğrulama Nasıl Çalışır?
-Konteyner her başlatıldığında `scripts/start.sh` dosyası devreye girerek kimlik doğrulamayı şu adımlarla dinamik olarak yapılandırır:
-
-1. **Şifre Algılama, Hash'leme ve Ezme (Override):**
-   - Konteyner ortamında güvenlik sağlamak amacıyla, çevre değişkenleri üzerinden iletilen `HERMES_DASHBOARD_BASIC_AUTH_PASSWORD` veya `HERMES_DASHBOARD_BASIC_AUTH_PASSWORD_HASH` değerleri, `config.yaml` dosyasında önceden kayıtlı veya geri yüklenmiş olabilecek tüm eski şifreleri **her zaman ezer (explicitly override)**.
-   - Eğer `HERMES_DASHBOARD_BASIC_AUTH_PASSWORD` çevre değişkeni tanımlanmışsa, bu şifre Hermes Agent'ın yerleşik `plugins.dashboard_auth.basic.hash_password` aracı kullanılarak güvenli bir şekilde `scrypt` algoritması ile hash'lenir ve `config.yaml` dosyasındaki `password_hash` alanına yazılır.
-   - Eğer doğrudan `HERMES_DASHBOARD_BASIC_AUTH_PASSWORD_HASH` tanımlanmışsa, bu değer doğrudan kullanılır.
-   - Eğer hiçbir şifre veya hash tanımlanmamışsa, sistem **otomatik olarak 12 karakterli güvenli bir şifre üretir**, bunu hash'ler ve başlangıç loglarında net bir şekilde görüntüler.
-
-2. **Eklenti Aktivasyonu:**
-   - Kimlik doğrulama sağlayıcısının kayıt hatası vermesini engellemek için `config.yaml` dosyasında `basic` eklentisi (basic auth) otomatik olarak aktifleştirilir. Bu doğrultuda eklenti `plugins.disabled` listesinde varsa temizlenir ve `plugins.enabled` listesine eklenir.
-
 ---
 
 ## 🌐 Gelişmiş Ağ ve DNS-over-HTTPS (DoH) Çözümü
@@ -147,53 +126,11 @@ Hugging Face Spaces gibi kısıtlı konteyner ortamlarında, Telegram, WhatsApp,
 
 Bu sorunu aşmak için projeye **DNS-over-HTTPS (DoH)** tabanlı dinamik bir bypass mekanizması entegre edilmiştir.
 
-### ⚙️ DoH Çözümleyici Nasıl Çalışır?
-1. **Ön Çözümleme (`scripts/dns-resolve.py`):**
-   - Başlangıçta arka planda çalıştırılır. Sistem DNS'i çalışmıyorsa Cloudflare (`1.1.1.1`) veya Google (`8.8.8.8`) DoH servislerini kullanarak engelli alan adlarının IP adreslerini tespit eder ve `/tmp/dns-resolved.json` dosyasına kaydeder. Yetki varsa bunları `/etc/hosts` dosyasına da ekler.
-2. **Node.js Desteği (`scripts/dns-fix.cjs`):**
-   - Playwright, WhatsApp köprüsü (whatsapp-bridge) veya arayüz derleme işlemleri gibi Node.js süreçleri için `NODE_OPTIONS` çevre değişkeni ile `--require scripts/dns-fix.cjs` yüklenir. Bu sayede tüm Node.js süreçleri engelli alan adlarını otomatik olarak çözümler.
-3. **Python Desteği (`scripts/sitecustomize.py`):**
-   - Hermes Agent'ın kendisi ve diğer Python süreçleri için `PYTHONPATH` değişkenine `scripts` dizini eklenerek `sitecustomize.py` dosyasının otomatik yüklenmesi sağlanır.
-   - Bu dosya, `socket.getaddrinfo` fonksiyonunu monkeypatching yöntemiyle yamalar.
-   - **Thread-local Reentrancy Koruması:** Yama, DoH HTTP istekleri yaparken oluşabilecek sonsuz döngüleri (recursion) engellemek amacıyla thread-local değişkenler kullanır ve güvenli bir çözümleme sağlar.
-
 ---
 
 ## 💾 GitHub ile Otomatik Yedekleme ve Geri Yükleme (Backup & Restore)
 
 Uygulamanın oturum geçmişi, veritabanı ve ayarları (`.hermes` dizini ve `config.yaml` dosyası) Hugging Face Spaces gibi geçici (ephemeral) ortamlarda konteyner sıfırlandığında kaybolabilir. Bunu önlemek için **GitHub tabanlı dinamik yedekleme ve geri yükleme** mekanizması (`scripts/github-backup.sh`) eklenmiştir.
-
-### ⚙️ Çalışma Mantığı ve Gelişmiş Güvenlik:
-1. **Geri Yükleme (Restore - Başlangıçta):**
-   - Konteyner başlatılırken `GITHUB_BACKUP_REPO` tanımlı ise, ilgili depo otomatik olarak geçici bir dizine klonlanır.
-   - Depo içerisindeki `.hermes/` dizini ve `config.yaml` dosyası, uygulamanın çalışacağı ana dizine kopyalanarak verileriniz kaldığı yerden geri yüklenir.
-   - **Güvenli Geri Yükleme (Safe Legacy Tar Extract):** Geri yükleme sırasında eski tar.gz formatındaki (`hermes_backup.tar.gz`) yedekler de desteklenir. Aktif çalışma ortamındaki kritik dosyaların (özellikle `/home/user/app/scripts/` altındaki özel ağ yamalarının ve scriptlerin) üzerine yanlışlıkla yazılmasını (overwriting) önlemek için; tar.gz arşivi önce güvenli geçici bir dizine açılır, ardından yalnızca `.hermes` veri klasörü ile `config.yaml` ayar dosyası hedef dizinlerine seçici olarak kopyalanır.
-
-2. **Periyodik Yedekleme (Backup - Çalışma Esnasında):**
-   - Arka planda çalışan bir servis, her **2 saatte bir** (varsayılan olarak) en güncel `.hermes` verilerini ve `config.yaml` dosyasını kontrol eder.
-   - Herhangi bir değişiklik algılanırsa, değişiklikler otomatik olarak commit edilip GitHub deponuza güvenli bir şekilde gönderilir (push edilir).
-
-3. **Kapatma Esnasında Yedekleme (Graceful Shutdown):**
-   - Hugging Face Spaces konteyneri durdurulduğunda (uyku moduna geçiş, yeniden başlatma vb.), sistem `SIGTERM` veya `SIGINT` sinyalini yakalar ve kapanmadan önce **en güncel durumu son bir kez GitHub deponuza push eder**.
-
-4. **Kalıcı Loglama ve Geçmiş Takibi:**
-   - Yedekleme ve geri yükleme işlemleri kullanıcı tarafından kolayca takip edilebilir. Tüm adımlar, zaman damgalı durum logları (`INFO`, `SUCCESS`, `WARNING`, `ERROR`) olarak standart çıktıya (stdout) basılır ve kalıcı olarak `$HOME/app/backup.log` dosyasına kaydedilir.
-   - Yedekleme geçmişinin kaybolmaması için `backup.log` dosyası, yedekleme ve geri yükleme adımlarında çalışma dizini ile GitHub deposu arasında karşılıklı olarak kopyalanarak korunur.
-
-### 🛠️ Kurulum Adımları:
-1. **Yedekleme Deposu Oluşturun:**
-   - GitHub üzerinde özel (private) veya genel (public) yeni bir depo (repository) oluşturun (örn: `hermes-yedek`).
-2. **Kişisel Erişim Token'ı (PAT) Alın:**
-   - GitHub profilinizden **Settings** -> **Developer Settings** -> **Personal Access Tokens** -> **Tokens (classic)** yolunu izleyin.
-   - **`repo`** (depo okuma/yazma) iznini seçerek bir token üretin ve kopyalayın.
-3. **Hugging Face Spaces Üzerinde Yapılandırın:**
-   - Hugging Face Space sayfanızda **Settings** -> **Variables and Secrets** alanına gidin.
-   - **`GITHUB_BACKUP_REPO`** adında bir Secret veya Variable ekleyin ve değerini `github.com/kullanici/depo-adi` formatında girin.
-   - **`GITHUB_TOKEN`** adında bir Secret ekleyin ve kopyaladığınız GitHub erişim token'ını yapıştırın.
-
-> 🔒 **Güvenlik Bilgisi:** Başlangıç loglarında veya push işlemlerinde herhangi bir hata oluşması durumunda, güvenlik amacıyla `GITHUB_TOKEN` değeriniz otomatik olarak maskelenir (`[MASKED_TOKEN]`) ve loglarda açık bir şekilde görünmesi engellenir.
-
-> 📦 **Büyük Dosya ve Limit Koruması:** GitHub dosya boyutu limitlerini (örn: 50MB/100MB limitleri) aşmamak için, sistem büyük boyutlu çalışma ortamı binary dosyalarını ve ortam bağımlılıklarını (`.hermes/bin`, `.hermes/node`, `.hermes/hermes-agent`, `.hermes/venv`, `.hermes/node_modules`) yedeklemeden otomatik olarak hariç tutar. Bu sayede sadece veri tabanınız, geçmiş oturumlarınız ve ayarlarınız hızlı ve sorunsuz şekilde yedeklenir.
 
 ---
 
@@ -220,12 +157,18 @@ Uygulamanın çalışması için aşağıdaki değişkenler kullanılmaktadır. 
 | `HERMES_DASHBOARD_BASIC_AUTH_PASSWORD` | Sır (Secret) | *(Otomatik Üretilir)* | Giriş şifresi. Belirtilmezse, başlangıçta rastgele üretilir ve loglara basılır. Bu değer `config.yaml` içindeki eski şifreleri ezer. |
 | `HERMES_DASHBOARD_BASIC_AUTH_PASSWORD_HASH` | Sır (Secret) | *(Boş)* | Şifrenin düz metin olarak girilmesini istemiyorsanız, önceden üretilmiş `scrypt` hash değerini buraya tanımlayabilirsiniz. |
 
-### 2. Sistem ve Altyapı Değişkenleri
+### 2. Buzz Kanalı ve Bildirim Değişkenleri
 
 | Değişken Adı | Türü | Varsayılan | Açıklama |
 | :--- | :--- | :--- | :--- |
-| `PORT` | Değişken | `7860` | Ana kontrol panelinin dinleyeceği port. Hugging Face Spaces bunu otomatik ayarlar. |
-| `HF_TOKEN` | Sır (Secret) | *(Boş)* | Hugging Face API erişim token'ı. Geri yükleme doğrulaması ve model API erişimleri için kullanılır. |
+| `BUZZ_ENABLE` | Değişken | `false` | Buzz entegrasyonunu açıkça aktifleştirmek için `true` yapın. |
+| `BUZZ_RELAY_URL` | Değişken/Sır | `wss://relay.buzz.community` | Bağlanılacak Buzz Relay adresi (Örn: `ws://localhost:8080` veya `wss://relay.buzz.community`). |
+| `BUZZ_PRIVATE_KEY` | Sır (Secret) | *(Boş)* | Dedicated agent private key (`nsec1...`). |
+| `BUZZ_HOME_CHANNEL` | Değişken | *(Boş)* | PDF özet ve otomatik bildirimlerin gönderileceği ana Buzz kanal ID'si (UUID). |
+| `BUZZ_CHANNELS` | Değişken | *(Boş)* | Dinlenecek Buzz kanallarının virgülle veya JSON dizisi olarak listesi. |
+| `BUZZ_CLI_PATH` | Değişken | `/usr/local/bin/buzz` | Buzz CLI ikili dosyasının yolu. |
+| `BUZZ_ALLOWED_USERS` | Değişken | *(Boş)* | Komut çalıştırmasına izin verilen kullanıcı adresi (`npub1...` veya hex). |
+| `BUZZ_ALLOW_ALL_USERS` | Değişken | `false` | Tüm kullanıcıların komut tetiklemesine izin vermek için `true` yapın. |
 
 ### 3. Yapay Zeka (AI) API Anahtarları
 Kullanmak istediğiniz modellere göre ilgili sağlayıcıların API anahtarlarını **Secret** olarak ekleyin:
@@ -239,149 +182,111 @@ Kullanmak istediğiniz modellere göre ilgili sağlayıcıların API anahtarlar�
 
 | Değişken Adı | Türü | Varsayılan | Açıklama |
 | :--- | :--- | :--- | :--- |
-| `GITHUB_BACKUP_REPO` | Değişken/Sır | *(Boş)* | Yedeklerin saklanacağı GitHub deposunun adresi (örn. `github.com/kullanici/hermes-yedek` veya `https://github.com/kullanici/hermes-yedek.git`). |
-| `GITHUB_TOKEN` | Sır (Secret) | *(Boş)* | GitHub deposuna yazma yetkisi olan kişisel erişim token'ı (Personal Access Token - PAT). Yedeklerin depoya push edilebilmesi için gereklidir. |
+| `GITHUB_BACKUP_REPO` | Değişken/Sır | *(Boş)* | Yedeklerin saklanacağı GitHub deposunun adresi. |
+| `GITHUB_TOKEN` | Sır (Secret) | *(Boş)* | GitHub deposuna yazma yetkisi olan kişisel erişim token'ı (PAT). |
 
 ---
 
-## 🗝️ API Anahtarları ve Detaylı Tanımlama Rehberi
+## 🐝 `buzz-skills` Entegrasyonu ve Otomatik Platform Yapılandırması
 
-Hermes Agent'ın yapay zeka modellerini çalıştırabilmesi, web taraması yapabilmesi ve otomatik yedekleme alabilmesi için çeşitli API anahtarlarına ihtiyacı vardır. Bu anahtarların her birinin görevi ve nasıl tanımlanacağı aşağıda detaylıca açıklanmıştır.
+`scripts/auth-config.py` betiği, yukarıdaki Buzz çevre değişkenlerini tespit ettiğinde `config.yaml` dosyasında Buzz platformunu otomatik olarak **etkinleştirir (`enabled: true`)** ve tüm alanları günceller:
 
-### 📋 Desteklenen API Anahtarları ve Görevleri
+```yaml
+gateway:
+  platforms:
+    buzz:
+      enabled: true
+      extra:
+        relay_url: "ws://localhost:8080"         # BUZZ_RELAY_URL
+        cli_path: "/usr/local/bin/buzz"           # BUZZ_CLI_PATH
+        channels: ["<CHANNEL_UUID>"]              # BUZZ_CHANNELS
+        home_channel: "<HOME_CHANNEL_UUID>"       # BUZZ_HOME_CHANNEL
+        require_mention: true                     # BUZZ_REQUIRE_MENTION
+        allow_all_users: false                    # BUZZ_ALLOW_ALL_USERS
+        allowed_users: ["<OWNER_NPUB>"]           # BUZZ_ALLOWED_USERS
+```
 
-| API Anahtarı Değişkeni | Sağlayıcı / Servis | Açıklama ve Kullanım Amacı |
-| :--- | :--- | :--- |
-| `OPENROUTER_API_KEY` | **OpenRouter** | **En Kritik Anahtar!** Hermes Agent varsayılan olarak `nvidia/nemotron-3-ultra-550b-a55b:free` modelini OpenRouter üzerinden kullanır. Ayrıca yüzlerce açık kaynaklı ve ticari modele tek bir anahtar ile erişim sağlar. |
-| `OPENAI_API_KEY` | **OpenAI** | `gpt-4o`, `gpt-4o-mini`, `o1`, `o3-mini` vb. resmi OpenAI modellerini doğrudan kullanmak için gereklidir. |
-| `ANTHROPIC_API_KEY` | **Anthropic** | Sektör lideri `claude-3-5-sonnet`, `claude-3-opus` gibi Claude modellerini doğrudan Anthropic altyapısından çağırmak için kullanılır. |
-| `DEEPSEEK_API_KEY` | **DeepSeek** | Akıl yürütme (reasoning) ve kodlama konusunda çok güçlü olan `deepseek-chat` (DeepSeek-V3) ve `deepseek-reasoner` (DeepSeek-R1) modellerini doğrudan resmi DeepSeek API'si üzerinden kullanmak için eklenmelidir. |
-| `GROQ_API_KEY` | **Groq** | LLaMA 3, Mixtral gibi açık kaynaklı modelleri son derece yüksek hızlarda (token/saniye) çalıştırmak için eklenir. |
-| `HF_TOKEN` | **Hugging Face** | Hem kodlarınızın GitHub'dan Hugging Face Spaces'e otomatik senkronizasyonu için, hem de Hugging Face üzerindeki açık kaynaklı modelleri barındıran API'leri sorgulamak için kullanılır. |
-| `GITHUB_TOKEN` | **GitHub** | `.hermes` veri klasörü ile `config.yaml` dosyasındaki değişiklikleri belirlediğiniz özel/genel GitHub deponuza periyodik ve otomatik olarak yedeklemek (push/clone) için zorunludur. |
-
----
-
-### 🛠️ API Anahtarları Hangi Ortamda Nasıl Tanımlanır?
-
-Uygulamayı çalıştırdığınız platforma göre API anahtarlarını tanımlama yöntemleri aşağıda detaylandırılmıştır:
-
-#### Yöntem A: Hugging Face Spaces Üzerinde Tanımlama (Önerilen)
-Hugging Face Spaces üzerinde API anahtarlarınızı asla açık kaynak kodlara veya `config.yaml` içerisine düz metin (plain text) olarak yazmamalısınız. Bunlar her zaman **Secret (Gizli Değişken)** olarak tanımlanmalıdır.
-
-1. **Hugging Face Space Sayfanıza Gidin:** Space arayüzünüzün üst barındaki **Settings** (Ayarlar) sekmesine tıklayın.
-2. **Variables and Secrets Bölümüne Gidin:** Sayfayı aşağı kaydırarak **Variables and secrets** bölümünü bulun.
-3. **Yeni Bir Gizli Değişken Ekleyin (New Secret):**
-   - **"New Secret"** butonuna tıklayın.
-   - **Name (Adı):** Tanımlayacağınız API anahtarının adını girin (Örn: `OPENROUTER_API_KEY`, `OPENAI_API_KEY` veya `GITHUB_TOKEN`).
-   - **Value (Değeri):** API sağlayıcınızdan aldığınız gizli anahtarı yapıştırın.
-   - **Save** butonuna basarak kaydedin.
-4. **Yeniden Başlatma:** Bir Secret eklediğinizde veya güncellediğinizde, Hugging Face Space uygulamanızı bu yeni güvenli değişkenlerle **otomatik olarak yeniden başlatacaktır**.
-
-*(Not: `GITHUB_BACKUP_REPO` gibi gizli olmayan ve sadece depo adresini tutan değişkenleri "New Variable" butonuna tıklayarak düz çevre değişkeni olarak da ekleyebilirsiniz.)*
+Bu sayede, `BUZZ_RELAY_URL` veya `BUZZ_HOME_CHANNEL` tanımlandığında `pdf-summarizer` skill'inin 5. adımındaki Buzz kanalı bildirimi **kullanıcının `config.yaml` dosyasını elle düzenlemesine gerek kalmadan tam otomatik olarak çalışır**.
 
 ---
 
-#### Yöntem B: Yerel Docker Ortamında Tanımlama (Local Development)
-Projeyi kendi bilgisayarınızda Docker ile çalıştırırken API anahtarlarını iki farklı şekilde tanımlayabilirsiniz:
+## 🛠️ Beceri (Skills) Yönetimi ve Volume Bağlantıları
 
-##### 1. Docker `run` Komutu Esnasında Doğrudan (`-e` Parametresi ile):
-Konteyneri başlatırken her bir anahtarı `-e` parametresiyle geçebilir, ayrıca `-v "$HOME/.hermes:/home/user/.hermes"` (Yerel Ev Dizini) veya `-v hermes-data:/home/user/.hermes` (Docker Hacmi) tercih edebilirsiniz:
+Hermes Agent'ın becerileri (skills) algılaması ve harici beceri depolarını sorunsuz çalıştırabilmesi için volume ve konfigürasyon entegrasyonu yapılmıştır.
+
+### Skill Klasörlerinin Volume Olarak Tanımlanması (`docker-compose.yml`)
+Yerel geliştirme ve konteyner ortamında yeni becerilerin anında algılanması ve kod değişikliklerinin konteyner içine yansıması için `docker-compose.yml` içerisinde klasörler volume olarak bağlanmıştır:
+
+```yaml
+version: '3'
+
+services:
+  hermes:
+    build: .
+    container_name: hermes-agent
+    ports:
+      - "7860:7860"
+      - "7861:7861"
+    volumes:
+      - hermes-data:/home/user/.hermes
+      - ./skills:/home/user/.hermes/skills
+      - ./skills:/home/user/app/skills
+      - ./buzz-skills:/home/user/app/buzz-skills
+      - ./buzz-skills:/home/user/.hermes/skills/buzz-skills
+    restart: always
+
+  ofelia:
+    image: mcuadros/ofelia:v0.3.22
+    container_name: ofelia-scheduler
+    depends_on:
+      - hermes
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./ofelia.conf:/etc/ofelia/config.ini:ro
+    restart: always
+
+volumes:
+  hermes-data:
+```
+
+---
+
+## ⏰ `mcuadros/ofelia` Zamanlayıcı ve PDF Summarizer Otomasyonu
+
+İşlemleri zamanlanmış görev (Cron) olarak çalıştırmak amacıyla `mcuadros/ofelia` Docker konteyneri entegre edilmiştir.
+
+### 📅 Zamanlama Konfigürasyonu (`ofelia.conf`)
+Ofelia, `/var/run/docker.sock` üzerinden `hermes-agent` konteynerinde doğrudan komut çalıştırır:
+
+```ini
+[global]
+
+[job-exec "pdf-summarizer-morning"]
+schedule = 0 30 8 * * *
+container = hermes-agent
+command = /opt/hermes/.venv/bin/hermes run --skill pdf-summarizer "PDF Summarizer & Smart Shelf Organizer skill'ini çalıştır"
+
+[job-exec "pdf-summarizer-evening"]
+schedule = 0 0 23 * * *
+container = hermes-agent
+command = /opt/hermes/.venv/bin/hermes run --skill pdf-summarizer "PDF Summarizer & Smart Shelf Organizer skill'ini çalıştır"
+```
+
+### 📄 PDF Summarizer & Smart Shelf Organizer İş Akışı:
+1. **Dosya Tarama:** `/Bilgi_Tabani/02_Okuma_Listesi/` altındaki yeni PDF/dökümanları tespit eder.
+2. **Derin Analiz & Türkçe Özet:** Dökümanı analiz edip standart şablon ile akademik Türkçe özet `.md` raporu oluşturur.
+3. **Akıllı Raf Düzenleme:** Dosyayı ve özetini `/Bilgi_Tabani/03_Akilli_Raflar/#Kategori_Adı/` dizinine taşır.
+4. **Buzz Kanalı Bildirimi:** Özet tamamlandığında hazırlanan özetin durumunu **Buzz kanalı** (`hermes-in-buzz`) üzerinden kullanıcıya bildirir.
+
+---
+
+## Yerel Ortamda Docker ile Çalıştırma
+
+### Docker Compose ile Çalıştırma (Ofelia Zamanlayıcı Dahil - Önerilen):
 ```bash
-docker run -d \
-  -p 7860:7860 \
-  -p 7861:7861 \
-  -e HERMES_DASHBOARD_BASIC_AUTH_USERNAME=admin \
-  -e HERMES_DASHBOARD_BASIC_AUTH_PASSWORD=GucluBirSifre123! \
-  -e OPENROUTER_API_KEY="sk-or-v1-xxxxxxxxxxxx..." \
-  -e OPENAI_API_KEY="sk-proj-xxxxxxxxxxxx..." \
-  -e GITHUB_BACKUP_REPO="github.com/kullanici/hermes-yedek" \
-  -e GITHUB_TOKEN="ghp_xxxxxxxxxxxx..." \
-  -v "$HOME/.hermes:/home/user/.hermes" \
-  my-hermes-agent
+# Submodule'leri çekin
+git submodule update --init --recursive
+
+# Docker Compose ile Hermes ve Ofelia servislerini başlatın
+docker-compose up -d --build
 ```
-
-##### 2. `.env` Dosyası Kullanarak (Daha Pratik):
-Proje kök dizininde gizli bir `.env` dosyası oluşturun ve içerisine anahtarlarınızı yazın:
-```env
-HERMES_DASHBOARD_BASIC_AUTH_USERNAME=admin
-HERMES_DASHBOARD_BASIC_AUTH_PASSWORD=GucluBirSifre123!
-OPENROUTER_API_KEY=sk-or-v1-xxxxxxxxxxxx...
-OPENAI_API_KEY=sk-proj-xxxxxxxxxxxx...
-DEEPSEEK_API_KEY=sk-xxxxxxxxxxxx...
-GITHUB_BACKUP_REPO=github.com/kullanici/hermes-yedek
-GITHUB_TOKEN=ghp_xxxxxxxxxxxx...
-```
-Ardından Docker konteynerini bu `.env` dosyasını referans göstererek tek seferde başlatın (Yerel Ev Dizini `-v "$HOME/.hermes:/home/user/.hermes"` veya Docker Hacmi `-v hermes-data:/home/user/.hermes` kullanabilirsiniz):
-```bash
-# Seçenek A: Yerel Ev Dizini
-docker run -d -p 7860:7860 -p 7861:7861 -v "$HOME/.hermes:/home/user/.hermes" --env-file .env my-hermes-agent
-
-# Seçenek B: Docker Hacmi
-docker run -d -p 7860:7860 -p 7861:7861 -v hermes-data:/home/user/.hermes --env-file .env my-hermes-agent
-```
-
-#### 📦 Docker'da `.env` İçe Aktarımı ve Detaylı Çalışma Prensibi
-
-##### Docker'da `.env` Dosyasının Rolü ve Güvenlik Uyarıları:
-- **Derleme (Build Time) Güvenliği:** Docker imajını derlerken (`docker build`), proje dizinindeki `.env` dosyası imaja **kopyalanmaz** veya dahil edilmez. Bu, API anahtarlarınızın ve şifrelerinizin Docker imajının katmanlarında kalıcı olarak saklanmasını engellediği için son derece kritik bir güvenlik önlemidir.
-- **Çalışma Zamanı (Runtime) Entegrasyonu:** `.env` dosyasının içeriği, konteyneri çalıştırırken (`docker run`) `--env-file .env` parametresiyle dinamik olarak Docker sürecine enjekte edilir. Bu sayede tüm gizli anahtarlar sadece çalışma zamanında RAM üzerinde tutulur.
-
-##### Otomatik .env Senkronizasyonu ve Çözüm Mantığı:
-Kullanıcıların setup-wizard.sh ile oluşturdukları `.env` dosyasındaki API anahtarlarının (örneğin `OPENROUTER_API_KEY`) web arayüzünde görünmemesi veya algılanmaması sorunu, Hermes Agent'ın gizli anahtarları ayrı bir konumda (`~/.hermes/.env` ve `~/.config/hermes/.env`) araması ve `config.yaml` ile birlikte ayrı dosyalar halinde yönetmesinden kaynaklanmaktadır.
-
-Geliştirdiğimiz entegre çözüm sayesinde:
-1. Konteyner ayağa kalkarken `scripts/start.sh` dosyası, çalışma dizinindeki (`$HOME/app/.env`) yerel `.env` dosyasını otomatik olarak tespit eder ve `source` ederek çevre değişkenlerini kabuğa aktarır.
-2. start.sh içindeki Python entegrasyon betiği, kabuktaki tüm kritik anahtarları (API_KEY, TOKEN ve HERMES_ ile başlayan değişkenleri) toplayıp, Hermes Agent'ın kendi çalışma dizinlerindeki (`~/.hermes/.env` ve `~/.config/hermes/.env`) `.env` dosyalarına dinamik olarak yazar ve senkronize tutar.
-3. Böylece hem `config.yaml` hem de `.env` dosyaları birbiriyle tam uyumlu çalışarak OpenRouter veya diğer AI API anahtarlarının Hermes Dashboard arayüzünde eksiksiz ve anında algılanmasını sağlar.
-
-##### Çalıştırma Örneği (Docker CLI):
-```bash
-# Adım 1: Sihirbazı çalıştırıp yerel .env dosyasını oluşturun
-./scripts/setup-wizard.sh
-
-# Adım 2: Docker imajını güvenle derleyin (gizli anahtarlar imaja gömülmez)
-docker build -t my-hermes-agent .
-
-# Adım 3: .env dosyasını --env-file ile referans göstererek konteyneri çalıştırın (tercih ettiğiniz veri saklama yöntemi ile)
-# Seçenek A: Yerel Ev Dizini
-docker run -d --name hermes -p 7860:7860 -p 7861:7861 -v "$HOME/.hermes:/home/user/.hermes" --env-file .env my-hermes-agent
-
-# Seçenek B: Docker Hacmi
-# docker run -d --name hermes -p 7860:7860 -p 7861:7861 -v hermes-data:/home/user/.hermes --env-file .env my-hermes-agent
-```
-
----
-
-#### Yöntem C: GitHub Actions Üzerinde Tanımlama (Otomatik Senkronizasyon İçin)
-Kodlarınızı GitHub'a yüklediğinizde Hugging Face Space'inizin otomatik olarak güncellenmesi için (`.github/workflows/hf-sync.yml` tetiklendiğinde) Hugging Face Write Token'ınızı GitHub Sırları (Secrets) arasına eklemelisiniz:
-
-1. **Hugging Face Token'ı Alın:**
-   - [Hugging Face Settings -> Tokens](https://huggingface.co/settings/tokens) adresine gidin.
-   - **New Token** butonuna tıklayın.
-   - Rolünü mutlaka **Write** (Yazma) yapın ve oluşturulan token'ı kopyalayın.
-2. **GitHub Deponuza Ekleyin:**
-   - GitHub üzerinde kodlarınızın bulunduğu deponun **Settings** sekmesine girin.
-   - Sol menüden **Secrets and variables** -> **Actions** yolunu takip edin.
-   - **"New repository secret"** butonuna tıklayın.
-   - **Name:** `HF_TOKEN` yazın.
-   - **Value:** Kopyaladığınız Hugging Face Write token'ını yapıştırın.
-   - **Add secret** butonuna tıklayarak tamamlayın.
-
----
-
-## 🔄 GitHub ve Hugging Face Spaces Senkronizasyonu
-
-GitHub deponuza kod yüklediğinizde, bu kodların otomatik olarak Hugging Face Space'inize senkronize edilmesi için `.github/workflows/hf-sync.yml` iş akışı (workflow) dosyası kullanılmaktadır.
-
-### Adım Adım Otomatik Senkronizasyon Kurulumu:
-1. **Hugging Face Token Alın:**
-   - [Hugging Face Access Tokens](https://huggingface.co/settings/tokens) sayfasına gidin.
-   - **New Token** butonuna tıklayıp rolü **Write** (Yazma yetkisi) olarak seçin, kopyalayın.
-2. **GitHub Deponuza Token'ı Ekleyin:**
-   - GitHub deponuzun **Settings** -> **Secrets and variables** -> **Actions** menüsüne gidin.
-   - **New repository secret** butonuna tıklayın.
-   - Adını tam olarak `HF_TOKEN` yapın ve kopyaladığınız token'ı yapıştırın.
-   - **Add secret** butonuna tıklayarak kaydedin.
-
-Artık GitHub deponuzun `main` dalına (branch) her `git push` yaptığınızda, GitHub Actions otomatik olarak çalışacak ve en güncel kodlarınızı Hugging Face Space'inize yükleyecektir.

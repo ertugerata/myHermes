@@ -476,7 +476,11 @@ sessions:
 skills:
   creation_nudge_interval: 15
   disabled: []
-  external_dirs: []
+  external_dirs:
+  - /home/user/app/skills
+  - /home/user/.hermes/skills
+  - /home/user/app/buzz-skills
+  - /home/user/.hermes/skills/buzz-skills
   guard_agent_created: false
   inline_shell: false
   inline_shell_timeout: 10

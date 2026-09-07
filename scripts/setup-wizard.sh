@@ -215,12 +215,23 @@ else
     echo -e "Şifre: ${CYAN}$db_password${NC}"
     echo
 
-    read -rp "Docker imajını şimdi derlemek ve arka planda çalıştırmak ister misiniz? (e/h): " auto_run
-    if [[ "$auto_run" =~ ^[EeYy]$ ]]; then
-        echo -e "\n${YELLOW}Docker İmajı Derleniyor (Bu işlem birkaç dakika sürebilir)...${NC}"
+    echo -e "  ${CYAN}docker-compose up -d --build${NC} (Ofelia zamanlayıcı ve bağlı hacimler dahil)"
+    echo
+
+    read -rp "Docker Compose veya Docker ile şimdi derleyip çalıştırmak ister misiniz? (1: Docker Compose, 2: Docker run, 3: Hayır) [Varsayılan: 1]: " auto_run
+    auto_run=${auto_run:-1}
+
+    if [ "$auto_run" = "1" ]; then
+        echo -e "\n${YELLOW}Git Submodule'ler güncelleniyor...${NC}"
+        git submodule update --init --recursive 2>/dev/null || true
+        echo -e "\n${YELLOW}Docker Compose ile servisler başlatılıyor...${NC}"
+        docker-compose up -d --build
+        echo -e "${GREEN}${BOLD}✔ Hermes Agent ve Ofelia zamanlayıcısı Docker Compose ile başlatıldı!${NC}"
+        echo -e "Arayüze erişmek için: ${BLUE}${BOLD}http://localhost:$app_port${NC}"
+    elif [ "$auto_run" = "2" ]; then
+        echo -e "\n${YELLOW}Docker İmajı Derleniyor...${NC}"
         docker build -t my-hermes-agent .
 
-        # Varsa eski konteyneri durdur ve sil
         if docker ps -a --format '{{.Names}}' | grep -Eq "^hermes$"; then
             echo -e "${YELLOW}Eski 'hermes' konteyneri durduruluyor ve kaldırılıyor...${NC}"
             docker rm -f hermes || true
