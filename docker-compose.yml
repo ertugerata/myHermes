@@ -1,0 +1,25 @@
+version: '3'
+
+services:
+  hermes:
+    build: .
+    container_name: hermes-agent
+    ports:
+      - "7860:7860"
+      - "7861:7861"
+    volumes:
+      - hermes-data:/home/user/.hermes
+    restart: always
+
+  ofelia:
+    image: mcuadros/ofelia:latest
+    container_name: ofelia-scheduler
+    depends_on:
+      - hermes
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./ofelia.conf:/etc/ofelia/config.ini:ro
+    restart: always
+
+volumes:
+  hermes-data:
