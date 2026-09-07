@@ -9,6 +9,8 @@ services:
       - "7861:7861"
     volumes:
       - hermes-data:/home/user/.hermes
+      - ./skills:/home/user/.hermes/skills
+      - ./skills:/home/user/app/skills
     restart: always
 
   ofelia:
