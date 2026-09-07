@@ -236,7 +236,7 @@ services:
     restart: always
 
   ofelia:
-    image: mcuadros/ofelia:latest
+    image: mcuadros/ofelia:v0.3.22
     container_name: ofelia-scheduler
     depends_on:
       - hermes
