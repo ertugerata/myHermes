@@ -65,6 +65,16 @@ if isinstance(enabled_list, list):
 else:
     plugins_cfg['enabled'] = ['basic']
 
+# Dynamic Buzz Relay URL & Platform Configuration
+buzz_relay_url = os.environ.get('BUZZ_RELAY_URL', '').strip()
+gateway_cfg = cfg.setdefault('gateway', {})
+platforms_cfg = gateway_cfg.setdefault('platforms', {})
+buzz_cfg = platforms_cfg.setdefault('buzz', {})
+buzz_extra = buzz_cfg.setdefault('extra', {})
+
+if buzz_relay_url:
+    buzz_extra['relay_url'] = buzz_relay_url
+
 # Save back to CONFIG_SRC
 with open(config_path, 'w') as f:
     yaml.safe_dump(cfg, f, default_flow_style=False)
