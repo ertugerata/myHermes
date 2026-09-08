@@ -35,6 +35,29 @@ def load_env_files():
 
 load_env_files()
 
+def resolve_local_path(path_str):
+    """
+    Resolves local path. If root / path is not writable, falls back to $HOME
+    """
+    p = Path(path_str).expanduser().resolve()
+    # If path is at system root (e.g. /Bilgi_Tabani) and root is not writable
+    if path_str.startswith('/Bilgi_Tabani'):
+        try:
+            p.mkdir(parents=True, exist_ok=True)
+            return str(p)
+        except PermissionError:
+            fallback_p = Path(os.path.expanduser('~')) / path_str.lstrip('/')
+            fallback_p.mkdir(parents=True, exist_ok=True)
+            return str(fallback_p)
+    else:
+        try:
+            p.mkdir(parents=True, exist_ok=True)
+            return str(p)
+        except PermissionError:
+            fallback_p = Path(os.path.expanduser('~')) / path_str.lstrip('/')
+            fallback_p.mkdir(parents=True, exist_ok=True)
+            return str(fallback_p)
+
 def get_config():
     target_type = os.environ.get('PDF_SUMMARIZER_TARGET_TYPE', os.environ.get('PDF_TARGET_TYPE', 'local')).lower()
 
@@ -46,6 +69,10 @@ def get_config():
     webdav_pass = os.environ.get('PDF_SUMMARIZER_WEBDAV_PASSWORD', os.environ.get('WEBDAV_PASSWORD', ''))
     webdav_reading_list = os.environ.get('PDF_SUMMARIZER_WEBDAV_READING_LIST', '/Bilgi_Tabani/02_Okuma_Listesi')
     webdav_shelves = os.environ.get('PDF_SUMMARIZER_WEBDAV_SHELVES', '/Bilgi_Tabani/03_Akilli_Raflar')
+
+    if target_type == 'local':
+        local_reading_list = resolve_local_path(local_reading_list)
+        local_shelves = resolve_local_path(local_shelves)
 
     return {
         'target_type': target_type,
@@ -170,6 +197,31 @@ class WebDAVClient:
             raise Exception(f"Failed to move {source_remote_path} to {dest_remote_path} (status {status}): {body}")
 
 
+def cmd_init_dirs():
+    cfg = get_config()
+    if cfg['target_type'] == 'webdav':
+        if not cfg['webdav_url']:
+            print("❌ Cannot initialize WebDAV directories: WEBDAV_URL is not set.")
+            return
+        client = WebDAVClient(cfg['webdav_url'], cfg['webdav_user'], cfg['webdav_pass'])
+        try:
+            client.ensure_dir(cfg['webdav_reading_list'])
+            print(f"✔ WebDAV reading list directory verified/created: {cfg['webdav_reading_list']}")
+            client.ensure_dir(cfg['webdav_shelves'])
+            print(f"✔ WebDAV shelves directory verified/created: {cfg['webdav_shelves']}")
+        except Exception as e:
+            print(f"❌ Failed to initialize WebDAV directories: {e}")
+    else:
+        rl_path = Path(cfg['local_reading_list'])
+        shelves_path = Path(cfg['local_shelves'])
+        try:
+            os.makedirs(rl_path, exist_ok=True)
+            print(f"✔ Local reading list directory verified/created: {rl_path}")
+            os.makedirs(shelves_path, exist_ok=True)
+            print(f"✔ Local shelves directory verified/created: {shelves_path}")
+        except Exception as e:
+            print(f"❌ Failed to create local directories: {e}")
+
 def cmd_status():
     cfg = get_config()
     print("=== PDF Summarizer Target Storage Configuration ===")
@@ -185,6 +237,7 @@ def cmd_status():
         else:
             client = WebDAVClient(cfg['webdav_url'], cfg['webdav_user'], cfg['webdav_pass'])
             try:
+                cmd_init_dirs()
                 files = client.list_dir(cfg['webdav_reading_list'])
                 print(f"✅ WebDAV Connection successful. Found {len(files)} items in reading list.")
             except Exception as e:
@@ -192,14 +245,10 @@ def cmd_status():
     else:
         print(f"Local Reading List: {cfg['local_reading_list']}")
         print(f"Local Shelves Dir:  {cfg['local_shelves']}")
+        cmd_init_dirs()
         rl_path = Path(cfg['local_reading_list'])
-        shelves_path = Path(cfg['local_shelves'])
-
-        if rl_path.exists():
-            files = [f.name for f in rl_path.iterdir() if f.is_file()]
-            print(f"✅ Local Reading List directory exists ({len(files)} files found).")
-        else:
-            print(f"⚠️  Local Reading List directory '{rl_path}' does not exist yet (will be created on use).")
+        files = [f.name for f in rl_path.iterdir() if f.is_file()] if rl_path.exists() else []
+        print(f"✅ Local Reading List directory ready ({len(files)} files found).")
 
 def cmd_list():
     cfg = get_config()
@@ -290,6 +339,7 @@ def main():
     parser = argparse.ArgumentParser(description="PDF Summarizer Storage Helper")
     subparsers = parser.add_subparsers(dest="command")
 
+    subparsers.add_parser("init-dirs", help="Initialize default reading list and shelves directories")
     subparsers.add_parser("status", help="Show current storage configuration and test connection")
     subparsers.add_parser("list", help="List document files in the reading list directory")
 
@@ -312,7 +362,9 @@ def main():
 
     args = parser.parse_args()
 
-    if args.command == "status":
+    if args.command == "init-dirs":
+        cmd_init_dirs()
+    elif args.command == "status":
         cmd_status()
     elif args.command == "list":
         cmd_list()

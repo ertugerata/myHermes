@@ -88,5 +88,11 @@ with open(env_path, 'w', encoding='utf-8') as f:
 cp "$HOME/.hermes/.env" "$HOME/.config/hermes/.env"
 echo "✔ .env dosyaları başarıyla ~/.hermes/.env ve ~/.config/hermes/.env konumlarına senkronize edildi."
 
+# PDF Summarizer hedef dizinlerini otomatik ilklendir
+if [ -f "$HOME/app/skills/pdf-summarizer/storage_helper.py" ]; then
+    echo "✔ PDF Summarizer hedef dizinleri kontrol ediliyor..."
+    "$HERMES_PYTHON" "$HOME/app/skills/pdf-summarizer/storage_helper.py" init-dirs || true
+fi
+
 echo "=== STARTING SUPERVISORD ==="
 exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf

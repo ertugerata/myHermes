@@ -131,7 +131,7 @@ Bu sorunu aşmak için projeye **DNS-over-HTTPS (DoH)** tabanlı dinamik bir byp
 
 ## 📁 `pdf-summarizer` Skill Dizin Yapılandırması (Local vs. WebDAV)
 
-`pdf-summarizer` skill'i dökümanları **Yerel Klasör (Local Directory)** veya **WebDAV Sunucusu** üzerinden okuyup düzenleyebilir. Hangi dizinin takip edileceği çevre değişkenleri üzerinden belirlenir:
+`pdf-summarizer` skill'i dökümanları **Yerel Klasör (Local Directory)** veya **WebDAV Sunucusu** üzerinden okuyup düzenleyebilir. Hangi dizinin takip edileceği çevre değişkenleri üzerinden belirlenir. Uygulama başlatıldığında öntanımlı okuma listesi ve raf klasör yapıları otomatik ilklendirilir.
 
 ### Çevre Değişkenleri:
 
@@ -147,9 +147,12 @@ Bu sorunu aşmak için projeye **DNS-over-HTTPS (DoH)** tabanlı dinamik bir byp
 | `PDF_SUMMARIZER_WEBDAV_SHELVES` | Değişken | `/Bilgi_Tabani/03_Akilli_Raflar` | WebDAV akıllı raflar klasör yolu |
 
 ### Depolama Yardımcısı (`storage_helper.py`):
-Skill içerisinde dosya listeleme, indirme, yükleme ve taşıma işlemleri `skills/pdf-summarizer/storage_helper.py` betiği ile yönetilir:
+Skill içerisinde dosya listeleme, indirme, yükleme, taşıma ve varsayılan klasör yapısını ilklendirme işlemleri `skills/pdf-summarizer/storage_helper.py` betiği ile yönetilir:
 
 ```bash
+# Öntanımlı klasör yapısını manuel oluşturma/doğrulama:
+python3 skills/pdf-summarizer/storage_helper.py init-dirs
+
 # Depolama durumunu ve bağlantıyı test etme:
 python3 skills/pdf-summarizer/storage_helper.py status
 

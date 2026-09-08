@@ -5,6 +5,7 @@
 
 ## TARGET DIRECTORY CONFIGURATION (Hedef Dizin Yapılandırması):
 Bu beceri hem **Yerel Klasör (Local)** hem de **WebDAV Sunucusu** üzerindeki dizinleri dinamik olarak takip edebilir. Takip edilecek dizin türü ve yolları çevre değişkenleri (Environment Variables) veya `.env` dosyası üzerinden yapılandırılır.
+Varsayılan klasör yapısı (`/Bilgi_Tabani/02_Okuma_Listesi/` ve `/Bilgi_Tabani/03_Akilli_Raflar/`) sistem başlangıcında otomatik olarak oluşturulur ve doğrulanır.
 
 ### Çevre Değişkenleri Yapılandırması:
 - **`PDF_SUMMARIZER_TARGET_TYPE`**: Saklama/takip türü (`local` veya `webdav`). Varsayılan: `local`
@@ -23,9 +24,12 @@ Bu beceri hem **Yerel Klasör (Local)** hem de **WebDAV Sunucusu** üzerindeki d
 ---
 
 ## DEPOLAMA YARDIMCISI KULLANIMI (`storage_helper.py`):
-Hermes Agent bu beceriyi çalıştırırken, Yerel veya WebDAV fark etmeksizin dosya işlemlerini otomatik yöneten yardımcı betiği kullanabilir:
+Hermes Agent bu beceriyi çalıştırırken, Yerel veya WebDAV fark etmeksizin dosya işlemlerini ve klasör yapısı kurulumunu otomatik yöneten yardımcı betiği kullanabilir:
 
 ```bash
+# Öntanımlı okuma listesi ve raf klasör yapılarını otomatik oluşturma/ilklendirme:
+python3 skills/pdf-summarizer/storage_helper.py init-dirs
+
 # Mevcut konfigürasyonu ve bağlantıyı kontrol etme:
 python3 skills/pdf-summarizer/storage_helper.py status
 
