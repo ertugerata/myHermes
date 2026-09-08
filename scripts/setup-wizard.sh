@@ -32,7 +32,7 @@ echo
 # -----------------------------------------------------------------------------
 # STEP 1: Hedef Ortam Seçimi
 # -----------------------------------------------------------------------------
-echo -e "${BLUE}${BOLD}[Adım 1/5] Hedef Dağıtım Ortamı Seçimi${NC}"
+echo -e "${BLUE}${BOLD}[Adım 1/6] Hedef Dağıtım Ortamı Seçimi${NC}"
 echo "Hermes Agent'ı nerede çalıştırmayı planlıyorsunuz?"
 echo -e "  ${GREEN}1)${NC} Hugging Face Spaces"
 echo -e "  ${GREEN}2)${NC} Yerel Docker Ortamı (Local Docker)"
@@ -49,7 +49,7 @@ echo -e "👉 Seçilen Hedef Ortam: ${CYAN}${BOLD}$TARGET_NAME${NC}\n"
 # -----------------------------------------------------------------------------
 # STEP 2: Dashboard Kimlik Doğrulama Bilgileri
 # -----------------------------------------------------------------------------
-echo -e "${BLUE}${BOLD}[Adım 2/5] Dashboard Giriş Bilgileri (Basic Auth)${NC}"
+echo -e "${BLUE}${BOLD}[Adım 2/6] Dashboard Giriş Bilgileri (Basic Auth)${NC}"
 echo "Dış dünyaya açık dashboard arayüzüne giriş için kimlik bilgileri gereklidir."
 
 read -rp "Yönetici Kullanıcı Adı [Varsayılan: admin]: " db_username
@@ -69,7 +69,7 @@ echo
 # -----------------------------------------------------------------------------
 # STEP 3: Yapay Zeka (AI) API Anahtarları
 # -----------------------------------------------------------------------------
-echo -e "${BLUE}${BOLD}[Adım 3/5] Yapay Zeka (AI) API Anahtarları${NC}"
+echo -e "${BLUE}${BOLD}[Adım 3/6] Yapay Zeka (AI) API Anahtarları${NC}"
 echo "Kullanmak istediğiniz servislerin API anahtarlarını giriniz. Boş bırakılanlar tanımlanmayacaktır."
 echo
 
@@ -83,7 +83,7 @@ echo
 # -----------------------------------------------------------------------------
 # STEP 4: GitHub Otomatik Yedekleme Ayarları
 # -----------------------------------------------------------------------------
-echo -e "${BLUE}${BOLD}[Adım 4/5] GitHub Otomatik Yedekleme ve Geri Yükleme${NC}"
+echo -e "${BLUE}${BOLD}[Adım 4/6] GitHub Otomatik Yedekleme ve Geri Yükleme${NC}"
 echo "Sohbet oturumlarınızın, verilerinizin ve ayarlarınızın kaybolmaması için"
 echo "GitHub tabanlı bir yedekleme sistemi kurmanızı şiddetle tavsiye ederiz."
 read -rp "GitHub yedekleme sistemini aktifleştirmek ister misiniz? (e/h) [Varsayılan: h]: " enable_backup
@@ -109,9 +109,48 @@ fi
 echo
 
 # -----------------------------------------------------------------------------
-# STEP 5: Genel Sistem Ayarları
+# STEP 5: PDF Summarizer & Smart Shelf Organizer Dizin Yapılandırması
 # -----------------------------------------------------------------------------
-echo -e "${BLUE}${BOLD}[Adım 5/5] Genel Sistem Ayarları${NC}"
+echo -e "${BLUE}${BOLD}[Adım 5/6] PDF Summarizer Dizin Yapılandırması (Local / WebDAV)${NC}"
+echo "PDF Summarizer skill'inin dökümanları tarayacağı ve düzenleyeceği dizin türünü seçin:"
+echo -e "  ${GREEN}1)${NC} Yerel Klasör (Local Directory)"
+echo -e "  ${GREEN}2)${NC} WebDAV Sunucusu"
+read -rp "Seçiminiz (1-2) [Varsayılan: 1]: " pdf_target_choice
+pdf_target_choice=${pdf_target_choice:-1}
+
+pdf_local_reading_list=""
+pdf_local_shelves=""
+pdf_webdav_url=""
+pdf_webdav_user=""
+pdf_webdav_pass=""
+pdf_webdav_reading_list=""
+pdf_webdav_shelves=""
+
+if [ "$pdf_target_choice" = "2" ]; then
+    PDF_SUMMARIZER_TARGET_TYPE="webdav"
+    echo -e "\n👉 ${CYAN}WebDAV Sunucu Ayarları:${NC}"
+    read -rp "WebDAV Sunucu URL (Örn: https://dav.example.com/remote.php/dav/files/user): " pdf_webdav_url
+    read -rp "WebDAV Kullanıcı Adı: " pdf_webdav_user
+    read -rsp "WebDAV Şifresi / Uygulama Anahtarı: " pdf_webdav_pass
+    echo
+    read -rp "WebDAV Okuma Listesi Yolu [Varsayılan: /Bilgi_Tabani/02_Okuma_Listesi]: " pdf_webdav_reading_list
+    pdf_webdav_reading_list=${pdf_webdav_reading_list:-/Bilgi_Tabani/02_Okuma_Listesi}
+    read -rp "WebDAV Akıllı Raflar Ana Dizin [Varsayılan: /Bilgi_Tabani/03_Akilli_Raflar]: " pdf_webdav_shelves
+    pdf_webdav_shelves=${pdf_webdav_shelves:-/Bilgi_Tabani/03_Akilli_Raflar}
+else
+    PDF_SUMMARIZER_TARGET_TYPE="local"
+    echo -e "\n👉 ${CYAN}Yerel Klasör Ayarları:${NC}"
+    read -rp "Yerel Okuma Listesi Dizini [Varsayılan: /Bilgi_Tabani/02_Okuma_Listesi]: " pdf_local_reading_list
+    pdf_local_reading_list=${pdf_local_reading_list:-/Bilgi_Tabani/02_Okuma_Listesi}
+    read -rp "Yerel Akıllı Raflar Ana Dizin [Varsayılan: /Bilgi_Tabani/03_Akilli_Raflar]: " pdf_local_shelves
+    pdf_local_shelves=${pdf_local_shelves:-/Bilgi_Tabani/03_Akilli_Raflar}
+fi
+echo
+
+# -----------------------------------------------------------------------------
+# STEP 6: Genel Sistem Ayarları
+# -----------------------------------------------------------------------------
+echo -e "${BLUE}${BOLD}[Adım 6/6] Genel Sistem Ayarları${NC}"
 read -rp "Dinlenecek Port Numarası [Varsayılan: 7860]: " app_port
 app_port=${app_port:-7860}
 echo -e "👉 Uygulama Portu: ${CYAN}$app_port${NC}"
@@ -154,6 +193,23 @@ if [ -n "$backup_repo" ] && [ -n "$backup_token" ]; then
     echo "GITHUB_TOKEN=$backup_token" >> "$ENV_FILE"
 fi
 
+cat << EOF >> "$ENV_FILE"
+
+# 5. PDF Summarizer Dizin Yapılandırması
+PDF_SUMMARIZER_TARGET_TYPE=$PDF_SUMMARIZER_TARGET_TYPE
+EOF
+
+if [ "$PDF_SUMMARIZER_TARGET_TYPE" = "webdav" ]; then
+    [ -n "$pdf_webdav_url" ] && echo "PDF_SUMMARIZER_WEBDAV_URL=$pdf_webdav_url" >> "$ENV_FILE"
+    [ -n "$pdf_webdav_user" ] && echo "PDF_SUMMARIZER_WEBDAV_USERNAME=$pdf_webdav_user" >> "$ENV_FILE"
+    [ -n "$pdf_webdav_pass" ] && echo "PDF_SUMMARIZER_WEBDAV_PASSWORD=$pdf_webdav_pass" >> "$ENV_FILE"
+    [ -n "$pdf_webdav_reading_list" ] && echo "PDF_SUMMARIZER_WEBDAV_READING_LIST=$pdf_webdav_reading_list" >> "$ENV_FILE"
+    [ -n "$pdf_webdav_shelves" ] && echo "PDF_SUMMARIZER_WEBDAV_SHELVES=$pdf_webdav_shelves" >> "$ENV_FILE"
+else
+    [ -n "$pdf_local_reading_list" ] && echo "PDF_SUMMARIZER_LOCAL_READING_LIST=$pdf_local_reading_list" >> "$ENV_FILE"
+    [ -n "$pdf_local_shelves" ] && echo "PDF_SUMMARIZER_LOCAL_SHELVES=$pdf_local_shelves" >> "$ENV_FILE"
+fi
+
 chmod 600 "$ENV_FILE"
 echo -e "${GREEN}${BOLD}✔ Konfigürasyon başarıyla .env dosyasına kaydedildi!${NC}"
 echo
@@ -176,17 +232,28 @@ if [ "$target_env" = "1" ]; then
     [ -n "$key_deepseek" ] && echo -e "  - ${YELLOW}DEEPSEEK_API_KEY${NC} = $key_deepseek"
     [ -n "$key_groq" ] && echo -e "  - ${YELLOW}GROQ_API_KEY${NC} = $key_groq"
     [ -n "$backup_token" ] && echo -e "  - ${YELLOW}GITHUB_TOKEN${NC} = (Kopyaladığınız GitHub PAT)"
+    [ -n "$pdf_webdav_pass" ] && echo -e "  - ${YELLOW}PDF_SUMMARIZER_WEBDAV_PASSWORD${NC} = (WebDAV Şifreniz)"
     echo
     echo -e "⚙️ ${BOLD}VARIABLES (Değişkenler):${NC}"
     echo -e "  - ${CYAN}HERMES_DASHBOARD_BASIC_AUTH_USERNAME${NC} = $db_username"
     echo -e "  - ${CYAN}PORT${NC} = $app_port"
     echo -e "  - ${CYAN}BACKUP_INTERVAL${NC} = $backup_interval"
     [ -n "$backup_repo" ] && echo -e "  - ${CYAN}GITHUB_BACKUP_REPO${NC} = $backup_repo"
+    echo -e "  - ${CYAN}PDF_SUMMARIZER_TARGET_TYPE${NC} = $PDF_SUMMARIZER_TARGET_TYPE"
+    if [ "$PDF_SUMMARIZER_TARGET_TYPE" = "webdav" ]; then
+        [ -n "$pdf_webdav_url" ] && echo -e "  - ${CYAN}PDF_SUMMARIZER_WEBDAV_URL${NC} = $pdf_webdav_url"
+        [ -n "$pdf_webdav_user" ] && echo -e "  - ${CYAN}PDF_SUMMARIZER_WEBDAV_USERNAME${NC} = $pdf_webdav_user"
+        [ -n "$pdf_webdav_reading_list" ] && echo -e "  - ${CYAN}PDF_SUMMARIZER_WEBDAV_READING_LIST${NC} = $pdf_webdav_reading_list"
+        [ -n "$pdf_webdav_shelves" ] && echo -e "  - ${CYAN}PDF_SUMMARIZER_WEBDAV_SHELVES${NC} = $pdf_webdav_shelves"
+    else
+        [ -n "$pdf_local_reading_list" ] && echo -e "  - ${CYAN}PDF_SUMMARIZER_LOCAL_READING_LIST${NC} = $pdf_local_reading_list"
+        [ -n "$pdf_local_shelves" ] && echo -e "  - ${CYAN}PDF_SUMMARIZER_LOCAL_SHELVES${NC} = $pdf_local_shelves"
+    fi
     echo
     echo -e "💡 Bu sırları ve değişkenleri girdikten sonra Spaces uygulamanız otomatik"
     echo -e "yeniden derlenip güvenli bir şekilde başlayacaktır."
 else
-    echo -e "${BLUE}${BOLD}[Adım 5/5] Veri Saklama (Volume Mount) Tercihi${NC}"
+    echo -e "${BLUE}${BOLD}[Adım 6/6] Veri Saklama (Volume Mount) Tercihi${NC}"
     echo "Konteyner verilerinizin (sohbet geçmişi ve ayarlar) nerede saklanmasını istersiniz?"
     echo -e "  ${GREEN}1)${NC} Yerel Ev Dizini (Host üzerindeki ~/.hermes klasörünü bağlar - Önerilen)"
     echo -e "  ${GREEN}2)${NC} Docker Hacmi (hermes-data adında izole bir Docker Named Volume kullanır)"

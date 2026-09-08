@@ -66,11 +66,16 @@ keys_to_sync = [
     'DEEPSEEK_API_KEY', 'GROQ_API_KEY', 'HF_TOKEN', 'GITHUB_TOKEN',
     'GITHUB_BACKUP_REPO', 'BACKUP_INTERVAL',
     'HERMES_DASHBOARD_BASIC_AUTH_USERNAME', 'HERMES_DASHBOARD_BASIC_AUTH_PASSWORD',
-    'HERMES_DASHBOARD_BASIC_AUTH_PASSWORD_HASH', 'PORT'
+    'HERMES_DASHBOARD_BASIC_AUTH_PASSWORD_HASH', 'PORT',
+    'PDF_SUMMARIZER_TARGET_TYPE', 'PDF_SUMMARIZER_LOCAL_READING_LIST',
+    'PDF_SUMMARIZER_LOCAL_SHELVES', 'PDF_SUMMARIZER_WEBDAV_URL',
+    'PDF_SUMMARIZER_WEBDAV_USERNAME', 'PDF_SUMMARIZER_WEBDAV_PASSWORD',
+    'PDF_SUMMARIZER_WEBDAV_READING_LIST', 'PDF_SUMMARIZER_WEBDAV_SHELVES',
+    'WEBDAV_URL', 'WEBDAV_USERNAME', 'WEBDAV_PASSWORD'
 ]
 
 for k, v in os.environ.items():
-    if k.startswith('HERMES_') or k.endswith('_API_KEY') or k.endswith('_TOKEN') or k in keys_to_sync:
+    if k.startswith('HERMES_') or k.startswith('PDF_SUMMARIZER_') or k.startswith('WEBDAV_') or k.endswith('_API_KEY') or k.endswith('_TOKEN') or k in keys_to_sync:
         env_dict[k] = v
 
 with open(env_path, 'w', encoding='utf-8') as f:
@@ -82,6 +87,12 @@ with open(env_path, 'w', encoding='utf-8') as f:
 # ~/.hermes/.env dosyasını ~/.config/hermes/.env konumuna da senkronize et
 cp "$HOME/.hermes/.env" "$HOME/.config/hermes/.env"
 echo "✔ .env dosyaları başarıyla ~/.hermes/.env ve ~/.config/hermes/.env konumlarına senkronize edildi."
+
+# PDF Summarizer hedef dizinlerini otomatik ilklendir
+if [ -f "$HOME/app/skills/pdf-summarizer/storage_helper.py" ]; then
+    echo "✔ PDF Summarizer hedef dizinleri kontrol ediliyor..."
+    "$HERMES_PYTHON" "$HOME/app/skills/pdf-summarizer/storage_helper.py" init-dirs || true
+fi
 
 echo "=== STARTING SUPERVISORD ==="
 exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf
