@@ -129,6 +129,30 @@ Bu sorunu aşmak için projeye **DNS-over-HTTPS (DoH)** tabanlı dinamik bir byp
 
 ---
 
+## 🧠 Feynman Öğrenme ve Analiz Becerileri (`feynman-analyzer` & `feynman-tutor`)
+
+Hermes Agent, döküman ve konuları Nobel ödüllü fizikçi Richard Feynman'ın öğrenme metodolojisiyle ele alan iki güçlü beceriye (`skill`) sahiptir:
+
+1. **`feynman-analyzer` (Asenkron Döküman Analizi):** Dökümanı teknik jargondan arındırarak 12 yaşındaki birinin anlayabileceği seviyeye (ELI5) indirger, günlük hayattan somut benzetmeler (analojiler) kurar, zihinsel kör noktaları ve kavramsal tuzakları tespit eder.
+2. **`feynman-tutor` (İnteraktif Sokratik Eğitmen):** Öğrenilen konunun pekiştirilmesi için Sokratik diyalog başlatır. Kullanıcının konuyu teknik terim kullanmadan anlatmasını ister, anlatımdaki eksik veya hataları tespit eder ve yönlendirici sorular sorar.
+
+---
+
+### 🔄 Kullanım Senaryoları
+
+#### 📩 Senaryo A: Asenkron Döküman İşleme (Otomatik)
+* **Adım 1 (Dosya Ekleme):** Bilgisayarınızdan veya telefonunuzdan bir PDF dosyasını Nextcloud üzerindeki `Bilgi_Tabani/02_Okuma_Listesi/` klasörüne eklersiniz.
+* **Adım 2 (Otomatik Tarama & Analiz):** Hermes Agent, zamanlanmış görevle bu klasörü tarar ve `feynman-analyzer` skill'ini çalıştırır.
+* **Adım 3 (Düzenleme & Temizlik):** Hermes, orijinal PDF ile birlikte ürettiği `Konu_Feynman_Karti.md` dosyasını `Bilgi_Tabani/03_Akilli_Raflar/#Konu/` klasörüne taşır ve okuma listesini temizler.
+* **Adım 4 (Hızlı Okuma):** Gün içinde bu `.md` dosyasını açıp 2 dakikada konunun en yalın özetini, benzetmelerini ve kavramsal tuzaklarını okursunuz.
+
+#### 💬 Senaryo B: Anlık İnteraktif Öğrenme (Sohbet / CLI)
+* **Tetikleme:** Öğrenmeyi derinleştirmek istediğinizde Hermes CLI (`hermes --tui` / web terminali) veya mesajlaşma arayüzünden (Dashboard / Buzz kanalı) ajana talimat verirsiniz:
+  > **Siz:** *"Hermes, dün özetlediğin 'Konteyner Mimarisi' konusu için feynman-tutor modunu başlat."*
+* **Sokratik Diyalog:** Hermes `feynman-tutor` moduna geçer, konuyu teknik kelimeler kullanmadan sıradan bir arkadaşınıza anlatır gibi açıklamanızı ister ve verdiğiniz yanıtlar üzerinden zihinsel boşluklarınızı kapatır.
+
+---
+
 ## 📁 `pdf-summarizer` Skill Dizin Yapılandırması (Local vs. WebDAV)
 
 `pdf-summarizer` skill'i dökümanları **Yerel Klasör (Local Directory)** veya **WebDAV Sunucusu** üzerinden okuyup düzenleyebilir. Hangi dizinin takip edileceği çevre değişkenleri üzerinden belirlenir. Uygulama başlatıldığında öntanımlı okuma listesi ve raf klasör yapıları otomatik ilklendirilir.
