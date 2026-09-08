@@ -2,6 +2,8 @@ services:
   hermes:
     build: .
     container_name: hermes-agent
+    env_file:
+      - .env
     ports:
       - "7860:7860"
       - "7861:7861"
