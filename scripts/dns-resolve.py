@@ -18,7 +18,6 @@ import urllib.request
 
 DOH_ENDPOINTS = [
     "https://1.1.1.1/dns-query",
-    "https://8.8.8.8/resolve",
     "https://dns.google/resolve",
 ]
 
