@@ -1,6 +1,6 @@
 # MyHermes Projesi - Detaylı Kullanım Kılavuzu (USAGE.md)
 
-Bu kılavuz, **Hermes Agent** web arayüzünün (Dashboard) Hugging Face Spaces veya yerel bir Docker ortamında nasıl kurulacağını, çalıştırılacağını, gelişmiş ağ (DNS) çözümlerini, güvenlik yapılandırmalarını, yedekleme mekanizmasını, **önceden yapılan ayarların ve verilerin nasıl korunduğunu (State Preservation)**, **`config.yaml` yapılandırmasının nasıl yüklendiğini**, **beceri (skills) klasörlerinin nasıl bağlandığını (volume)**, **`buzz-skills` (Kendi Özel Relay'iniz veya Genel Relay) kullanımı** ve **`mcuadros/ofelia` zamanlayıcısı ile otomatik görev çalıştırmayı** detaylandırmaktadır.
+Bu kılavuz, **Hermes Agent** web arayüzünün (Dashboard) Hugging Face Spaces veya yerel bir Docker ortamında nasıl kurulacağını, çalıştırılacağını, gelişmiş ağ (DNS) çözümlerini, güvenlik yapılandırmalarını, yedekleme mekanizmasını, **önceden yapılan ayarların ve verilerin nasıl korunduğunu (State Preservation)**, **`config.yaml` yapılandırmasının nasıl yüklendiğini**, **beceri (skills) klasörlerinin nasıl bağlandığını (volume)**, **`buzz-skills` (Kendi Özel Relay'iniz veya Genel Relay) kullanımı**, **`pdf-summarizer` Dizin Yapılandırması (Local / WebDAV)** ve **`mcuadros/ofelia` zamanlayıcısı ile otomatik görev çalıştırmayı** detaylandırmaktadır.
 
 ---
 
@@ -87,8 +87,9 @@ Sihirbaz şu adımları otomatik yönetir:
 1. **Hedef Ortam Seçimi:** Hugging Face Spaces veya Yerel Docker.
 2. **Kimlik Doğrulama & API Key Tanımlama:** `.env` dosyasına güvenli kayıt.
 3. **GitHub Yedekleme Kurulumu:** Otomatik geri yükleme/yedekleme bağlantısı.
-4. **Veri Saklama Yöntemi Seçimi:** `$HOME/.hermes` (Yerel dizin) veya `hermes-data` (Docker Hacmi).
-5. **Otomatik Çalıştırma Tercihi:**
+4. **PDF Summarizer Dizin Yapılandırması:** Yerel Klasör (Local) veya WebDAV Sunucu seçimi.
+5. **Veri Saklama Yöntemi Seçimi:** `$HOME/.hermes` (Yerel dizin) veya `hermes-data` (Docker Hacmi).
+6. **Otomatik Çalıştırma Tercihi:**
    - **Docker Compose (Önerilen):** Hermes Agent ve `mcuadros/ofelia` zamanlayıcısını birlikte başlatır.
    - **Docker run:** Sadece Hermes Agent konteynerini başlatır.
 
@@ -125,6 +126,36 @@ Dış dünyaya açık (kamusal IP'ye veya `0.0.0.0` adresine bağlanan) tüm Her
 Hugging Face Spaces gibi kısıtlı konteyner ortamlarında, Telegram, WhatsApp, Slack, Discord ve bazı yapay zeka (AI) sağlayıcılarının (OpenAI, Anthropic vb.) alan adları varsayılan DNS sunucuları tarafından engellenebilir veya çözümlenemeyebilir.
 
 Bu sorunu aşmak için projeye **DNS-over-HTTPS (DoH)** tabanlı dinamik bir bypass mekanizması entegre edilmiştir.
+
+---
+
+## 📁 `pdf-summarizer` Skill Dizin Yapılandırması (Local vs. WebDAV)
+
+`pdf-summarizer` skill'i dökümanları **Yerel Klasör (Local Directory)** veya **WebDAV Sunucusu** üzerinden okuyup düzenleyebilir. Hangi dizinin takip edileceği çevre değişkenleri üzerinden belirlenir:
+
+### Çevre Değişkenleri:
+
+| Değişken Adı | Türü | Varsayılan | Açıklama |
+| :--- | :--- | :--- | :--- |
+| `PDF_SUMMARIZER_TARGET_TYPE` | Değişken | `local` | Takip türü: `local` veya `webdav` |
+| `PDF_SUMMARIZER_LOCAL_READING_LIST` | Değişken | `/Bilgi_Tabani/02_Okuma_Listesi` | Yerel okuma listesi dizini |
+| `PDF_SUMMARIZER_LOCAL_SHELVES` | Değişken | `/Bilgi_Tabani/03_Akilli_Raflar` | Yerel akıllı raflar dizini |
+| `PDF_SUMMARIZER_WEBDAV_URL` | Değişken | *(Boş)* | WebDAV sunucu adresi (Örn: `https://dav.example.com/remote.php/dav/files/user`) |
+| `PDF_SUMMARIZER_WEBDAV_USERNAME` | Değişken | *(Boş)* | WebDAV kullanıcı adı |
+| `PDF_SUMMARIZER_WEBDAV_PASSWORD` | Sır (Secret) | *(Boş)* | WebDAV şifresi veya uygulama anahtarı |
+| `PDF_SUMMARIZER_WEBDAV_READING_LIST` | Değişken | `/Bilgi_Tabani/02_Okuma_Listesi` | WebDAV okuma listesi klasör yolu |
+| `PDF_SUMMARIZER_WEBDAV_SHELVES` | Değişken | `/Bilgi_Tabani/03_Akilli_Raflar` | WebDAV akıllı raflar klasör yolu |
+
+### Depolama Yardımcısı (`storage_helper.py`):
+Skill içerisinde dosya listeleme, indirme, yükleme ve taşıma işlemleri `skills/pdf-summarizer/storage_helper.py` betiği ile yönetilir:
+
+```bash
+# Depolama durumunu ve bağlantıyı test etme:
+python3 skills/pdf-summarizer/storage_helper.py status
+
+# Okuma listesini listeleme:
+python3 skills/pdf-summarizer/storage_helper.py list
+```
 
 ---
 
@@ -271,9 +302,9 @@ command = /opt/hermes/.venv/bin/hermes run --skill pdf-summarizer "PDF Summarize
 ```
 
 ### 📄 PDF Summarizer & Smart Shelf Organizer İş Akışı:
-1. **Dosya Tarama:** `/Bilgi_Tabani/02_Okuma_Listesi/` altındaki yeni PDF/dökümanları tespit eder.
+1. **Dosya Tarama:** `/Bilgi_Tabani/02_Okuma_Listesi/` (veya yapılandırılmış WebDAV/Yerel dizin) altındaki yeni PDF/dökümanları tespit eder.
 2. **Derin Analiz & Türkçe Özet:** Dökümanı analiz edip standart şablon ile akademik Türkçe özet `.md` raporu oluşturur.
-3. **Akıllı Raf Düzenleme:** Dosyayı ve özetini `/Bilgi_Tabani/03_Akilli_Raflar/#Kategori_Adı/` dizinine taşır.
+3. **Akıllı Raf Düzenleme:** Dosyayı ve özetini `/Bilgi_Tabani/03_Akilli_Raflar/#Kategori_Adı/` dizinine (Local veya WebDAV) taşır.
 4. **Buzz Kanalı Bildirimi:** Özet tamamlandığında hazırlanan özetin durumunu **Buzz kanalı** (`hermes-in-buzz`) üzerinden kullanıcıya bildirir.
 
 ---

@@ -66,11 +66,16 @@ keys_to_sync = [
     'DEEPSEEK_API_KEY', 'GROQ_API_KEY', 'HF_TOKEN', 'GITHUB_TOKEN',
     'GITHUB_BACKUP_REPO', 'BACKUP_INTERVAL',
     'HERMES_DASHBOARD_BASIC_AUTH_USERNAME', 'HERMES_DASHBOARD_BASIC_AUTH_PASSWORD',
-    'HERMES_DASHBOARD_BASIC_AUTH_PASSWORD_HASH', 'PORT'
+    'HERMES_DASHBOARD_BASIC_AUTH_PASSWORD_HASH', 'PORT',
+    'PDF_SUMMARIZER_TARGET_TYPE', 'PDF_SUMMARIZER_LOCAL_READING_LIST',
+    'PDF_SUMMARIZER_LOCAL_SHELVES', 'PDF_SUMMARIZER_WEBDAV_URL',
+    'PDF_SUMMARIZER_WEBDAV_USERNAME', 'PDF_SUMMARIZER_WEBDAV_PASSWORD',
+    'PDF_SUMMARIZER_WEBDAV_READING_LIST', 'PDF_SUMMARIZER_WEBDAV_SHELVES',
+    'WEBDAV_URL', 'WEBDAV_USERNAME', 'WEBDAV_PASSWORD'
 ]
 
 for k, v in os.environ.items():
-    if k.startswith('HERMES_') or k.endswith('_API_KEY') or k.endswith('_TOKEN') or k in keys_to_sync:
+    if k.startswith('HERMES_') or k.startswith('PDF_SUMMARIZER_') or k.startswith('WEBDAV_') or k.endswith('_API_KEY') or k.endswith('_TOKEN') or k in keys_to_sync:
         env_dict[k] = v
 
 with open(env_path, 'w', encoding='utf-8') as f:
