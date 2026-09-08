@@ -135,21 +135,35 @@ class WebDAVClient:
             root = ET.fromstring(body)
             # WebDAV namespace
             ns = {'d': 'DAV:'}
-            for response in root.findall('d:response', ns) or root.findall('{DAV:}response'):
-                href_el = response.find('d:href', ns) or response.find('{DAV:}href')
+            responses = root.findall('d:response', ns)
+            if not responses:
+                responses = root.findall('{DAV:}response')
+            for response in responses:
+                href_el = response.find('d:href', ns)
+                if href_el is None:
+                    href_el = response.find('{DAV:}href')
                 if href_el is None or not href_el.text:
                     continue
                 href = urllib.parse.unquote(href_el.text)
 
                 # Check if collection (directory)
                 is_dir = False
-                propstat = response.find('d:propstat', ns) or response.find('{DAV:}propstat')
+                propstat = response.find('d:propstat', ns)
+                if propstat is None:
+                    propstat = response.find('{DAV:}propstat')
                 if propstat is not None:
-                    prop = propstat.find('d:prop', ns) or propstat.find('{DAV:}prop')
+                    prop = propstat.find('d:prop', ns)
+                    if prop is None:
+                        prop = propstat.find('{DAV:}prop')
                     if prop is not None:
-                        res_type = prop.find('d:resourcetype', ns) or prop.find('{DAV:}resourcetype')
+                        res_type = prop.find('d:resourcetype', ns)
+                        if res_type is None:
+                            res_type = prop.find('{DAV:}resourcetype')
                         if res_type is not None:
-                            if res_type.find('d:collection', ns) is not None or res_type.find('{DAV:}collection') is not None:
+                            col = res_type.find('d:collection', ns)
+                            if col is None:
+                                col = res_type.find('{DAV:}collection')
+                            if col is not None:
                                 is_dir = True
 
                 filename = os.path.basename(href.rstrip('/'))

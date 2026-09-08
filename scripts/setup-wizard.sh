@@ -296,6 +296,8 @@ else
         echo -e "${GREEN}${BOLD}✔ Hermes Agent ve Ofelia zamanlayıcısı Docker Compose ile başlatıldı!${NC}"
         echo -e "Arayüze erişmek için: ${BLUE}${BOLD}http://localhost:$app_port${NC}"
     elif [ "$auto_run" = "2" ]; then
+        echo -e "\n${YELLOW}Git Submodule'ler güncelleniyor...${NC}"
+        git submodule update --init --recursive 2>/dev/null || true
         echo -e "\n${YELLOW}Docker İmajı Derleniyor...${NC}"
         docker build -t my-hermes-agent .
 

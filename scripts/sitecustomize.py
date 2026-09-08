@@ -28,7 +28,7 @@ load_dns_resolved()
 
 DOH_ENDPOINTS = [
     "https://1.1.1.1/dns-query",
-    "https://8.8.8.8/resolve",
+    "https://dns.google/resolve",
 ]
 
 def resolve_via_doh(domain: str) -> str:

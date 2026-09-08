@@ -13,9 +13,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# ttyd kurulumu
-RUN curl -sL https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.x86_64 -o /usr/local/bin/ttyd && \
-    chmod +x /usr/local/bin/ttyd
+# ttyd kurulumu (Multi-arch desteği için ttyd imajından kopyalıyoruz)
+COPY --from=tsl0922/ttyd:1.7.7 /usr/bin/ttyd /usr/local/bin/ttyd
+RUN chmod +x /usr/local/bin/ttyd
 
 # Hugging Face Spaces için "user" kullanıcısını tanımlayalım.
 RUN useradd -m -u 1000 user && \

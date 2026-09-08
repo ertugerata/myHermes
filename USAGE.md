@@ -10,7 +10,7 @@ Bu proje, Hermes Agent Dashboard'u bir Docker konteyneri içinde barındırır. 
 
 ### 🖥️ Web TUI (ttyd Terminali) ve Süreç Yönetimi (Supervisor)
 
-Bu proje, Hermes Agent'ın TUI (Terminal Kullanıcı Arayüzü) ekranına web tarayıcınız üzerinden erişebilmenizi sağlayan **ttyd** (xterm.js tabanlı web terminali) entegrasyonuyla birlikte gelir. Tüm arka plan süreçleri, otomatik kurtarma, periyodik yedekleme ve sıralı başlatma özellikleri ise endüstriyel standarttaki **supervisord** süreç yöneticisi tarafından yönetilir.
+Bu proje, Hermes Agent'ın TUI (Terminal Kullanıcı Arayüzü) ekranına web tarayıcınız üzerinden erişebilmenizi sağlayan **ttyd** (xterm.js tabanlı web terminali) entegrasyonuyla birlikte gelir. `ttyd` kurulumu Dockerfile içerisinde `tsl0922/ttyd:1.7.7` resmi imajından multi-architecture (`COPY --from=...`) yöntemiyle kopyalandığı için x86_64 ve ARM64 (Apple Silicon) mimarilerinde sorunsuz derlenir. Tüm arka plan süreçleri, otomatik kurtarma, periyodik yedekleme ve sıralı başlatma özellikleri ise endüstriyel standarttaki **supervisord** süreç yöneticisi tarafından yönetilir.
 
 #### 🔌 Sunulan Web Arayüzleri ve Erişim Portları
 
@@ -27,7 +27,7 @@ Bu proje, Hermes Agent'ın TUI (Terminal Kullanıcı Arayüzü) ekranına web ta
 
 Konteyner başlatıldığında supervisord, aşağıdaki süreçleri hiyerarşik öncelik (priority) değerlerine göre sırasıyla ve güvenli bir şekilde çalıştırır:
 
-1. **`dns-resolve` (Öncelik: 10):** DoH (DNS-over-HTTPS) ön çözümleme servisini başlatarak engelli alan adlarını tespit eder.
+1. **`dns-resolve` (Öncelik: 10):** DoH (DNS-over-HTTPS) ön çözümleme servisini (`https://1.1.1.1/dns-query` ve `https://dns.google/resolve` uç noktaları ile) başlatarak engelli alan adlarını tespit eder.
 2. **`github-restore` (Öncelik: 20):** Başlangıçta varsa GitHub üzerindeki `.hermes` yedeklerinizi geri yükler.
 3. **`auth-config` (Öncelik: 30):** Çevre değişkenlerinden gelen dashboard giriş bilgilerini, Buzz platform ayarlarını ve kimlik doğrulama eklentisini güvenle hazırlar.
 4. **`hermes-dashboard` (Öncelik: 40):** 7860 portunda çalışacak olan ana kontrol panelini ayağa kaldırır.
@@ -131,7 +131,7 @@ Bu sorunu aşmak için projeye **DNS-over-HTTPS (DoH)** tabanlı dinamik bir byp
 
 ## 🧠 Feynman Öğrenme ve Analiz Becerileri (`feynman-analyzer` & `feynman-tutor`)
 
-Hermes Agent, döküman ve konuları Nobel ödüllü fizikçi Richard Feynman'ın öğrenme metodolojisiyle ele alan iki güçlü beceriye (`skill`) sahiptir:
+Hermes Agent, döküman ve konuları Nobel ödüllü fizikçi Richard Feynman'ın öğrenme metodolojisiyle ele alan iki güçlü beceriye (`skill`) sahiptir (Her iki beceri de Hermes standartlarına uygun olarak `skills/feynman-analyzer/SKILL.md` ve `skills/feynman-tutor/SKILL.md` altında tanımlanmıştır):
 
 1. **`feynman-analyzer` (Asenkron Döküman Analizi):** Dökümanı teknik jargondan arındırarak 12 yaşındaki birinin anlayabileceği seviyeye (ELI5) indirger, günlük hayattan somut benzetmeler (analojiler) kurar, zihinsel kör noktaları ve kavramsal tuzakları tespit eder.
 2. **`feynman-tutor` (İnteraktif Sokratik Eğitmen):** Öğrenilen konunun pekiştirilmesi için Sokratik diyalog başlatır. Kullanıcının konuyu teknik terim kullanmadan anlatmasını ister, anlatımdaki eksik veya hataları tespit eder ve yönlendirici sorular sorar.
@@ -282,6 +282,8 @@ services:
   hermes:
     build: .
     container_name: hermes-agent
+    env_file:
+      - .env
     ports:
       - "7860:7860"
       - "7861:7861"
