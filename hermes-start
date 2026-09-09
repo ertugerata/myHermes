@@ -4,14 +4,27 @@
 # Bu betik, gereksiz portları kapatılmış ve optimize edilmiş olarak
 # Hermes Agent docker konteynerini arka planda başlatır.
 
-# .env dosyası yoksa dur ve kullanıcıyı bilgilendir
+if [ "${1:-}" = "wizard" ] || [ "${1:-}" = "--wizard" ] || [ "${1:-}" = "-w" ]; then
+    exec bash scripts/setup-wizard.sh
+fi
+
+# .env dosyası yoksa kullanıcıya sihirbazı çalıştırma seçeneği sun
 if [ ! -f ".env" ]; then
     echo "❌ HATA: .env dosyası bulunamadı!"
-    echo "    Lütfen önce 'bash scripts/setup-wizard.sh' komutunu çalıştırın"
-    echo "    ya da OPENROUTER_API_KEY, HERMES_DASHBOARD_BASIC_AUTH_USERNAME ve"
-    echo "    HERMES_DASHBOARD_BASIC_AUTH_PASSWORD değerlerini içeren bir .env dosyası oluşturun."
-    exit 1
+    read -rp "İnteraktif Kurulum Sihirbazı (setup-wizard.sh) çalıştırılsın mı? (e/h) [Varsayılan: e]: " run_wiz
+    run_wiz=${run_wiz:-e}
+    if [[ "$run_wiz" =~ ^[EeYy]$ ]]; then
+        exec bash scripts/setup-wizard.sh
+    else
+        echo "Lütfen bir .env dosyası oluşturun veya 'bash scripts/setup-wizard.sh' komutunu çalıştırın."
+        exit 1
+    fi
 fi
+
+# .env dosyasındaki çevre değişkenlerini yükle
+set -a
+source .env 2>/dev/null || true
+set +a
 
 # Varsa eski konteyneri durdur ve sil
 if docker ps -a --format '{{.Names}}' | grep -Eq "^hermes$"; then
@@ -26,24 +39,41 @@ echo "  2) Docker Hacmi (hermes-data adında izole bir Docker Named Volume kulla
 read -rp "Seçiminiz (1-2) [Varsayılan: 1]: " volume_choice
 volume_choice=${volume_choice:-1}
 
+APP_PORT="${PORT:-7860}"
+
+DOCKER_ARGS=(
+    run -d
+    --name hermes
+    -p "$APP_PORT:$APP_PORT"
+    -p 7861:7861
+)
+
 if [ "$volume_choice" = "1" ]; then
-  echo "✔ Yerel ev dizini (~/.hermes) kullanılacak."
-  mkdir -p "$HOME/.hermes"
-  VOLUME_MOUNT="-v $HOME/.hermes:/home/user/.hermes"
+    echo "✔ Yerel ev dizini (~/.hermes) kullanılacak."
+    mkdir -p "$HOME/.hermes"
+    DOCKER_ARGS+=(-v "$HOME/.hermes:/home/user/.hermes")
 else
-  echo "✔ Docker Hacmi (hermes-data) kullanılacak."
-  VOLUME_MOUNT="-v hermes-data:/home/user/.hermes"
+    echo "✔ Docker Hacmi (hermes-data) kullanılacak."
+    DOCKER_ARGS+=(-v "hermes-data:/home/user/.hermes")
 fi
 
+# Local PDF Summarizer dizin bağlantılarını ekle
+if [ "${PDF_SUMMARIZER_TARGET_TYPE:-local}" = "local" ]; then
+    if [ -n "${PDF_SUMMARIZER_LOCAL_READING_LIST:-}" ]; then
+        mkdir -p "$PDF_SUMMARIZER_LOCAL_READING_LIST"
+        DOCKER_ARGS+=(-v "$PDF_SUMMARIZER_LOCAL_READING_LIST:$PDF_SUMMARIZER_LOCAL_READING_LIST")
+    fi
+    if [ -n "${PDF_SUMMARIZER_LOCAL_SHELVES:-}" ]; then
+        mkdir -p "$PDF_SUMMARIZER_LOCAL_SHELVES"
+        DOCKER_ARGS+=(-v "$PDF_SUMMARIZER_LOCAL_SHELVES:$PDF_SUMMARIZER_LOCAL_SHELVES")
+    fi
+fi
+
+DOCKER_ARGS+=(--env-file .env my-hermes-agent)
+
 echo "Hermes Agent konteyneri başlatılıyor..."
-docker run -d \
-  --name hermes \
-  -p 7860:7860 \
-  -p 7861:7861 \
-  $VOLUME_MOUNT \
-  --env-file .env \
-  my-hermes-agent
+docker "${DOCKER_ARGS[@]}"
 
 echo "Hermes Agent başarıyla başlatıldı!"
-echo "Dashboard: http://localhost:7860"
+echo "Dashboard: http://localhost:$APP_PORT"
 echo "Web TUI: http://localhost:7861"

@@ -140,10 +140,19 @@ if [ "$pdf_target_choice" = "2" ]; then
 else
     PDF_SUMMARIZER_TARGET_TYPE="local"
     echo -e "\n👉 ${CYAN}Yerel Klasör Ayarları:${NC}"
-    read -rp "Yerel Okuma Listesi Dizini [Varsayılan: /Bilgi_Tabani/02_Okuma_Listesi]: " pdf_local_reading_list
-    pdf_local_reading_list=${pdf_local_reading_list:-/Bilgi_Tabani/02_Okuma_Listesi}
-    read -rp "Yerel Akıllı Raflar Ana Dizin [Varsayılan: /Bilgi_Tabani/03_Akilli_Raflar]: " pdf_local_shelves
-    pdf_local_shelves=${pdf_local_shelves:-/Bilgi_Tabani/03_Akilli_Raflar}
+    read -rp "Yerel Ana Dizin Yolu (Klasörler bu dizin altında 'Bilgi_Tabani/...' olarak oluşturulacaktır) [Varsayılan: $HOME]: " pdf_local_base_path
+    pdf_local_base_path=${pdf_local_base_path:-$HOME}
+    pdf_local_base_path="${pdf_local_base_path/#\~/$HOME}"
+    pdf_local_base_path="${pdf_local_base_path%/}"
+
+    pdf_local_reading_list="${pdf_local_base_path}/Bilgi_Tabani/02_Okuma_Listesi"
+    pdf_local_shelves="${pdf_local_base_path}/Bilgi_Tabani/03_Akilli_Raflar"
+
+    echo -e "👉 Okuma Listesi Dizini: ${CYAN}$pdf_local_reading_list${NC}"
+    echo -e "👉 Akıllı Raflar Dizini: ${CYAN}$pdf_local_shelves${NC}"
+
+    mkdir -p "$pdf_local_reading_list" "$pdf_local_shelves"
+    echo -e "👉 ${GREEN}✔ Dizinler başarıyla oluşturuldu.${NC}"
 fi
 echo
 
@@ -260,14 +269,24 @@ else
     read -rp "Seçiminiz (1-2) [Varsayılan: 1]: " vol_choice
     vol_choice=${vol_choice:-1}
 
+    PDF_EXTRA_VOLS=""
+    if [ "$PDF_SUMMARIZER_TARGET_TYPE" = "local" ]; then
+        if [ -n "$pdf_local_reading_list" ]; then
+            PDF_EXTRA_VOLS="$PDF_EXTRA_VOLS -v \"$pdf_local_reading_list:$pdf_local_reading_list\""
+        fi
+        if [ -n "$pdf_local_shelves" ]; then
+            PDF_EXTRA_VOLS="$PDF_EXTRA_VOLS -v \"$pdf_local_shelves:$pdf_local_shelves\""
+        fi
+    fi
+
     if [ "$vol_choice" = "1" ]; then
-        DOCKER_VOL_CMD="mkdir -p \"\$HOME/.hermes\" && docker run -d --name hermes -p $app_port:$app_port -v \"\$HOME/.hermes:/home/user/.hermes\" --env-file .env my-hermes-agent"
+        DOCKER_VOL_CMD="mkdir -p \"\$HOME/.hermes\" && docker run -d --name hermes -p $app_port:$app_port -v \"\$HOME/.hermes:/home/user/.hermes\" $PDF_EXTRA_VOLS --env-file .env my-hermes-agent"
         DOCKER_VOL_RUN_PRE="mkdir -p \"\$HOME/.hermes\""
-        DOCKER_VOL_RUN_CMD="docker run -d --name hermes -p \"$app_port:$app_port\" -v \"\$HOME/.hermes:/home/user/.hermes\" --env-file \"\$ENV_FILE\" my-hermes-agent"
+        DOCKER_VOL_RUN_CMD="docker run -d --name hermes -p \"$app_port:$app_port\" -v \"\$HOME/.hermes:/home/user/.hermes\" $PDF_EXTRA_VOLS --env-file \"\$ENV_FILE\" my-hermes-agent"
     else
-        DOCKER_VOL_CMD="docker run -d --name hermes -p $app_port:$app_port -v hermes-data:/home/user/.hermes --env-file .env my-hermes-agent"
+        DOCKER_VOL_CMD="docker run -d --name hermes -p $app_port:$app_port -v hermes-data:/home/user/.hermes $PDF_EXTRA_VOLS --env-file .env my-hermes-agent"
         DOCKER_VOL_RUN_PRE="true"
-        DOCKER_VOL_RUN_CMD="docker run -d --name hermes -p \"$app_port:$app_port\" -v hermes-data:/home/user/.hermes --env-file \"\$ENV_FILE\" my-hermes-agent"
+        DOCKER_VOL_RUN_CMD="docker run -d --name hermes -p \"$app_port:$app_port\" -v hermes-data:/home/user/.hermes $PDF_EXTRA_VOLS --env-file \"\$ENV_FILE\" my-hermes-agent"
     fi
 
     echo -e "\n${GREEN}${BOLD}========================================================="
