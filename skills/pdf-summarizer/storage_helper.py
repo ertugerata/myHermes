@@ -37,9 +37,12 @@ load_env_files()
 
 def resolve_local_path(path_str):
     """
-    Resolves local path. If root / path is not writable, falls back to $HOME
+    Resolves local path. Expands environment variables (e.g. $HOME) and tilde (~).
+    If root / path is not writable, falls back to $HOME.
     """
-    p = Path(path_str).expanduser().resolve()
+    expanded = os.path.expandvars(os.path.expanduser(path_str))
+    p = Path(expanded).resolve()
+
     # If path is at system root (e.g. /Bilgi_Tabani) and root is not writable
     if path_str.startswith('/Bilgi_Tabani'):
         try:
