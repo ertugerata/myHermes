@@ -162,8 +162,8 @@ Hermes Agent, döküman ve konuları Nobel ödüllü fizikçi Richard Feynman'ı
 | Değişken Adı | Türü | Varsayılan | Açıklama |
 | :--- | :--- | :--- | :--- |
 | `PDF_SUMMARIZER_TARGET_TYPE` | Değişken | `local` | Takip türü: `local` veya `webdav` |
-| `PDF_SUMMARIZER_LOCAL_READING_LIST` | Değişken | `/Bilgi_Tabani/02_Okuma_Listesi` | Yerel okuma listesi dizini |
-| `PDF_SUMMARIZER_LOCAL_SHELVES` | Değişken | `/Bilgi_Tabani/03_Akilli_Raflar` | Yerel akıllı raflar dizini |
+| `PDF_SUMMARIZER_LOCAL_READING_LIST` | Değişken | `$HOME/Bilgi_Tabani/02_Okuma_Listesi` | Yerel okuma listesi dizini |
+| `PDF_SUMMARIZER_LOCAL_SHELVES` | Değişken | `$HOME/Bilgi_Tabani/03_Akilli_Raflar` | Yerel akıllı raflar dizini |
 | `PDF_SUMMARIZER_WEBDAV_URL` | Değişken | *(Boş)* | WebDAV sunucu adresi (Örn: `https://dav.example.com/remote.php/dav/files/user`) |
 | `PDF_SUMMARIZER_WEBDAV_USERNAME` | Değişken | *(Boş)* | WebDAV kullanıcı adı |
 | `PDF_SUMMARIZER_WEBDAV_PASSWORD` | Sır (Secret) | *(Boş)* | WebDAV şifresi veya uygulama anahtarı |
