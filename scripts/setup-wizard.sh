@@ -311,9 +311,22 @@ else
         echo -e "\n${YELLOW}Git Submodule'ler güncelleniyor...${NC}"
         git submodule update --init --recursive 2>/dev/null || true
         echo -e "\n${YELLOW}Docker Compose ile servisler başlatılıyor...${NC}"
-        docker-compose up -d --build
-        echo -e "${GREEN}${BOLD}✔ Hermes Agent ve Ofelia zamanlayıcısı Docker Compose ile başlatıldı!${NC}"
-        echo -e "Arayüze erişmek için: ${BLUE}${BOLD}http://localhost:$app_port${NC}"
+        if command -v docker-compose &>/dev/null; then
+            COMPOSE_CMD="docker-compose"
+        elif docker compose version &>/dev/null; then
+            COMPOSE_CMD="docker compose"
+        else
+            COMPOSE_CMD=""
+        fi
+
+        if [ -n "$COMPOSE_CMD" ]; then
+            $COMPOSE_CMD up -d --build
+            echo -e "${GREEN}${BOLD}✔ Hermes Agent ve Ofelia zamanlayıcısı Docker Compose ile başlatıldı!${NC}"
+            echo -e "Arayüze erişmek için: ${BLUE}${BOLD}http://localhost:$app_port${NC}"
+        else
+            echo -e "${RED}❌ HATA: Sisteminizde 'docker-compose' veya 'docker compose' komutu bulunamadı!${NC}"
+            echo -e "Lütfen Docker Compose'u yükleyin veya manuel olarak '${CYAN}docker compose up -d --build${NC}' komutunu çalıştırın."
+        fi
     elif [ "$auto_run" = "2" ]; then
         echo -e "\n${YELLOW}Git Submodule'ler güncelleniyor...${NC}"
         git submodule update --init --recursive 2>/dev/null || true
