@@ -96,7 +96,7 @@ Uygulama sürümünü güncellerken verilerinizin veya özelleştirilmiş ayarla
 4. **Yapay Zeka (AI) Sağlayıcı Entegrasyonları:** OpenRouter, OpenAI, Anthropic, DeepSeek, Groq vb. API anahtarlarını yapılandırır.
 5. **GitHub Yedekleme & Kurtarma (Disaster Recovery):** Konteyner sıfırlansa bile sohbet geçmişi ve ayarların kaybolmaması için GitHub tabanlı otomatik yedekleme deposunu bağlar.
 6. **PDF Summarizer Dizin Yapılandırması:** Döküman tarama ve özetleme işlemleri için Yerel Klasör (`Bilgi_Tabani/...`) veya WebDAV sunucusu (Nextcloud vb.) ayarlarını ilklendirir.
-7. **Veri Saklama (Volume Mount) & Otomatik Başlatma:** `$HOME/.hermes` yerel klasör veya `hermes-data` named volume seçimini alıp isteğe bağlı olarak Docker Compose veya `docker run` ile konteyneri anında başlatır.
+7. **Otomatik Başlatma:** Yapılandırma tamamlandıktan sonra isteğe bağlı olarak Docker Compose (`docker compose up -d --build`) ile tüm servisleri (Hermes Agent ve Ofelia zamanlayıcısı) anında başlatır.
 
 ### Sihirbazı Çalıştırma:
 ```bash
@@ -300,7 +300,6 @@ services:
       - .env
     ports:
       - "7860:7860"
-      - "7861:7861"
     volumes:
       - hermes-data:/home/user/.hermes
       - ./skills:/home/user/app/skills
