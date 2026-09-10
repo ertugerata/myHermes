@@ -262,52 +262,21 @@ if [ "$target_env" = "1" ]; then
     echo -e "💡 Bu sırları ve değişkenleri girdikten sonra Spaces uygulamanız otomatik"
     echo -e "yeniden derlenip güvenli bir şekilde başlayacaktır."
 else
-    echo -e "${BLUE}${BOLD}[Adım 6/6] Veri Saklama (Volume Mount) Tercihi${NC}"
-    echo "Konteyner verilerinizin (sohbet geçmişi ve ayarlar) nerede saklanmasını istersiniz?"
-    echo -e "  ${GREEN}1)${NC} Yerel Ev Dizini (Host üzerindeki ~/.hermes klasörünü bağlar - Önerilen)"
-    echo -e "  ${GREEN}2)${NC} Docker Hacmi (hermes-data adında izole bir Docker Named Volume kullanır)"
-    read -rp "Seçiminiz (1-2) [Varsayılan: 1]: " vol_choice
-    vol_choice=${vol_choice:-1}
-
-    PDF_EXTRA_VOLS=""
-    if [ "$PDF_SUMMARIZER_TARGET_TYPE" = "local" ]; then
-        if [ -n "$pdf_local_reading_list" ]; then
-            PDF_EXTRA_VOLS="$PDF_EXTRA_VOLS -v \"$pdf_local_reading_list:$pdf_local_reading_list\""
-        fi
-        if [ -n "$pdf_local_shelves" ]; then
-            PDF_EXTRA_VOLS="$PDF_EXTRA_VOLS -v \"$pdf_local_shelves:$pdf_local_shelves\""
-        fi
-    fi
-
-    if [ "$vol_choice" = "1" ]; then
-        DOCKER_VOL_CMD="mkdir -p \"\$HOME/.hermes\" && docker run -d --name hermes -p $app_port:$app_port -v \"\$HOME/.hermes:/home/user/.hermes\" $PDF_EXTRA_VOLS --env-file .env my-hermes-agent"
-        DOCKER_VOL_RUN_PRE="mkdir -p \"\$HOME/.hermes\""
-        DOCKER_VOL_RUN_CMD="docker run -d --name hermes -p \"$app_port:$app_port\" -v \"\$HOME/.hermes:/home/user/.hermes\" $PDF_EXTRA_VOLS --env-file \"\$ENV_FILE\" my-hermes-agent"
-    else
-        DOCKER_VOL_CMD="docker run -d --name hermes -p $app_port:$app_port -v hermes-data:/home/user/.hermes $PDF_EXTRA_VOLS --env-file .env my-hermes-agent"
-        DOCKER_VOL_RUN_PRE="true"
-        DOCKER_VOL_RUN_CMD="docker run -d --name hermes -p \"$app_port:$app_port\" -v hermes-data:/home/user/.hermes $PDF_EXTRA_VOLS --env-file \"\$ENV_FILE\" my-hermes-agent"
-    fi
-
     echo -e "\n${GREEN}${BOLD}========================================================="
     echo "   YEREL DOCKER - ÇALIŞTIRMA REHBERİ"
     echo -e "=========================================================${NC}"
     echo -e "Yerel Docker ortamında çalıştırmak için aşağıdaki komutu kullanabilirsiniz:"
-    echo -e "  ${CYAN}docker build -t my-hermes-agent .${NC}"
-    echo -e "  ${CYAN}$DOCKER_VOL_CMD${NC}"
+    echo -e "  ${CYAN}docker compose up -d --build${NC} (Ofelia zamanlayıcı ve bağlı hacimler dahil)"
     echo
     echo -e "Arayüze ${BOLD}http://localhost:$app_port${NC} adresinden ulaşabilirsiniz."
     echo -e "Kullanıcı Adı: ${CYAN}$db_username${NC}"
     echo -e "Şifre: ${CYAN}$db_password${NC}"
     echo
 
-    echo -e "  ${CYAN}docker-compose up -d --build${NC} (Ofelia zamanlayıcı ve bağlı hacimler dahil)"
-    echo
+    read -rp "Docker Compose ile şimdi derleyip çalıştırmak ister misiniz? (e/h) [Varsayılan: e]: " auto_run
+    auto_run=${auto_run:-e}
 
-    read -rp "Docker Compose veya Docker ile şimdi derleyip çalıştırmak ister misiniz? (1: Docker Compose, 2: Docker run, 3: Hayır) [Varsayılan: 1]: " auto_run
-    auto_run=${auto_run:-1}
-
-    if [ "$auto_run" = "1" ]; then
+    if [[ "$auto_run" =~ ^[EeYy]$ ]]; then
         echo -e "\n${YELLOW}Git Submodule'ler güncelleniyor...${NC}"
         git submodule update --init --recursive 2>/dev/null || true
         echo -e "\n${YELLOW}Docker Compose ile servisler başlatılıyor...${NC}"
@@ -327,22 +296,6 @@ else
             echo -e "${RED}❌ HATA: Sisteminizde 'docker-compose' veya 'docker compose' komutu bulunamadı!${NC}"
             echo -e "Lütfen Docker Compose'u yükleyin veya manuel olarak '${CYAN}docker compose up -d --build${NC}' komutunu çalıştırın."
         fi
-    elif [ "$auto_run" = "2" ]; then
-        echo -e "\n${YELLOW}Git Submodule'ler güncelleniyor...${NC}"
-        git submodule update --init --recursive 2>/dev/null || true
-        echo -e "\n${YELLOW}Docker İmajı Derleniyor...${NC}"
-        docker build -t my-hermes-agent .
-
-        if docker ps -a --format '{{.Names}}' | grep -Eq "^hermes$"; then
-            echo -e "${YELLOW}Eski 'hermes' konteyneri durduruluyor ve kaldırılıyor...${NC}"
-            docker rm -f hermes || true
-        fi
-
-        echo -e "${YELLOW}Konteyner Başlatılıyor...${NC}"
-        eval "$DOCKER_VOL_RUN_PRE"
-        eval "$DOCKER_VOL_RUN_CMD"
-        echo -e "${GREEN}${BOLD}✔ Konteyner başarıyla arka planda başlatıldı!${NC}"
-        echo -e "Arayüze erişmek için: ${BLUE}${BOLD}http://localhost:$app_port${NC}"
     fi
 fi
 
