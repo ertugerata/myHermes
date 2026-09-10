@@ -13,10 +13,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# ttyd kurulumu (Multi-arch desteği için ttyd imajından kopyalıyoruz)
-COPY --from=tsl0922/ttyd:1.7.7 /usr/bin/ttyd /usr/local/bin/ttyd
-RUN chmod +x /usr/local/bin/ttyd
-
 # Hugging Face Spaces için "user" kullanıcısını tanımlayalım.
 RUN useradd -m -u 1000 user && \
     echo "user ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
@@ -65,7 +61,7 @@ RUN mkdir -p $HOME/.hermes && \
 
 RUN chmod +x scripts/start.sh scripts/dns-resolve.py scripts/setup-wizard.sh 2>/dev/null || true
 
-EXPOSE 7860 7861
+EXPOSE 7860
 
 # Giriş noktasını başlangıç betiği (start.sh) olarak ayarlıyoruz
 ENTRYPOINT ["/home/user/app/scripts/start.sh"]

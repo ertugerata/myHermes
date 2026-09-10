@@ -45,7 +45,6 @@ DOCKER_ARGS=(
     run -d
     --name hermes
     -p "$APP_PORT:$APP_PORT"
-    -p 7861:7861
 )
 
 if [ "$volume_choice" = "1" ]; then
@@ -76,4 +75,3 @@ docker "${DOCKER_ARGS[@]}"
 
 echo "Hermes Agent başarıyla başlatıldı!"
 echo "Dashboard: http://localhost:$APP_PORT"
-echo "Web TUI: http://localhost:7861"
