@@ -4,22 +4,34 @@ Bu kılavuz, **Hermes Agent** web arayüzünün (Dashboard) Hugging Face Spaces 
 
 ---
 
+## 📌 Son Güncellemeler ve Yapılan Değişiklikler
+
+1. **`ttyd` ve Web TUI Entegrasyonunun Kaldırılması:**
+   - Artık ihtiyaç duyulmayan `ttyd` (web tabanlı TUI terminali) bağımlılığı ve buna bağlı olarak `7861` portu projeden tamamen kaldırılmıştır.
+   - `Dockerfile` içerisindeki `COPY --from=tsl0922/ttyd:1.7.7` ve `EXPOSE 7861` satırları temizlenmiştir.
+   - `supervisord.conf` konfigürasyonundaki `[program:hermes-tui-web]` servisi kaldırılmıştır.
+   - `hermes-start` ve `docker-compose.yml` dosyalarındaki `7861` port yönlendirmeleri silinmiş, sistem sadece ana web kontrol paneline (`7860` portu) odaklanmıştır.
+
+2. **İnteraktif Kurulum Sihirbazı (`setup-wizard.sh`) Açıklamaları:**
+   - Sihirbazın neden başlatıldığı, hangi problemleri çözdüğü ve interaktif olarak `.env` yapılandırmasını nasıl oluşturduğu kılavuza detaylı olarak eklenmiştir.
+
+---
+
 ## 🚀 Başlangıç ve Çalıştırma
 
 Bu proje, Hermes Agent Dashboard'u bir Docker konteyneri içinde barındırır. Hugging Face Spaces veya yerel konteyner ortamlarında sorunsuz, yüksek performanslı ve güvenli çalışacak şekilde optimize edilmiştir.
 
-### 🖥️ Web TUI (ttyd Terminali) ve Süreç Yönetimi (Supervisor)
+### ⚙️ Süreç Yönetimi (Supervisor) ve Servis Hiyerarşisi
 
-Bu proje, Hermes Agent'ın TUI (Terminal Kullanıcı Arayüzü) ekranına web tarayıcınız üzerinden erişebilmenizi sağlayan **ttyd** (xterm.js tabanlı web terminali) entegrasyonuyla birlikte gelir. `ttyd` kurulumu Dockerfile içerisinde `tsl0922/ttyd:1.7.7` resmi imajından multi-architecture (`COPY --from=...`) yöntemiyle kopyalandığı için x86_64 ve ARM64 (Apple Silicon) mimarilerinde sorunsuz derlenir. Tüm arka plan süreçleri, otomatik kurtarma, periyodik yedekleme ve sıralı başlatma özellikleri ise endüstriyel standarttaki **supervisord** süreç yöneticisi tarafından yönetilir.
+Bu projede tüm arka plan süreçleri, otomatik kurtarma, periyodik yedekleme ve sıralı başlatma özellikleri endüstriyel standarttaki **supervisord** süreç yöneticisi tarafından yönetilir.
 
-#### 🔌 Sunulan Web Arayüzleri ve Erişim Portları
+#### 🔌 Sunulan Web Arayüzü ve Erişim Portu
 
 | Arayüz | Port | URL | Açıklama |
 | :--- | :--- | :--- | :--- |
 | **Kontrol Paneli (Dashboard)** | `7860` | `http://localhost:7860` | Web yönetim arayüzü, sohbet, eklentiler ve genel konfigürasyon. |
-| **TUI Web Terminali** | `7861` | `http://localhost:7861` | Tarayıcı üzerinden tam özellikli terminal TUI (Kanban panosu, Temsilci listesi, Oturum geçmişi ve sistem widget'ları). |
 
-> 💡 **Hugging Face Spaces Ayarı:** Hugging Face Spaces üzerinde dağıtırken her iki porttan da yararlanabilmek için **Settings -> Repository -> Ports** bölümüne `7860, 7861` portlarını eklediğinizden emin olun.
+> 💡 **Hugging Face Spaces Ayarı:** Hugging Face Spaces üzerinde dağıtırken arayüze erişebilmek için **Settings -> Repository -> Ports** bölümünde `7860` portunun eklendiğinden emin olun.
 
 ---
 
@@ -31,8 +43,7 @@ Konteyner başlatıldığında supervisord, aşağıdaki süreçleri hiyerarşik
 2. **`github-restore` (Öncelik: 20):** Başlangıçta varsa GitHub üzerindeki `.hermes` yedeklerinizi geri yükler.
 3. **`auth-config` (Öncelik: 30):** Çevre değişkenlerinden gelen dashboard giriş bilgilerini, Buzz platform ayarlarını ve kimlik doğrulama eklentisini güvenle hazırlar.
 4. **`hermes-dashboard` (Öncelik: 40):** 7860 portunda çalışacak olan ana kontrol panelini ayağa kaldırır.
-5. **`hermes-tui-web` (Öncelik: 50):** 7861 portu üzerinden ttyd terminali ile `hermes --tui` TUI arayüzünü tarayıcılara sunar.
-6. **`backup-loop` (Öncelik: 60):** Her 2 saatte bir değişen verileri algılayarak GitHub yedek deposuna push eder.
+5. **`backup-loop` (Öncelik: 60):** Her 2 saatte bir değişen verileri algılayarak GitHub yedek deposuna push eder.
 
 ---
 
@@ -44,8 +55,7 @@ Konteyner içerisinde hangi süreçlerin aktif olarak çalıştığını veya lo
 # Tüm servislerin durumunu kontrol edin
 supervisorctl status
 
-# Belirli bir servisin durumunu veya loglarını izleyin
-supervisorctl tail -f hermes-tui-web
+# Dashboard servisini izleyin
 supervisorctl tail -f hermes-dashboard
 ```
 
@@ -75,23 +85,27 @@ Uygulama sürümünü güncellerken verilerinizin veya özelleştirilmiş ayarla
 
 ---
 
-## 🧙‍♂️ İnteraktif Kurulum Sihirbazı Entegrasyonu (`scripts/setup-wizard.sh`)
+## 🧙‍♂️ İnteraktif Kurulum Sihirbazı Neden Başlatılıyor? (`scripts/setup-wizard.sh`)
 
-Sihirbaz betiği, veri koruma tercihleriniz ile zamanlayıcı servislerini tek bir akışta entegre eder:
+`setup-wizard.sh` betiği, Hermes Agent'ın ilk kurulumunda veya yerel başlatma esnasında (`./hermes-start wizard` veya `.env` dosyası bulunmadığında) kullanıcıyı adım adım yönlendirerek gerekli tüm sistem yapılandırmalarını güvenli ve hatasız bir şekilde oluşturmak için başlatılır.
 
+### ❓ Sihirbazın Başlatılma Amaçları:
+1. **Çevre Değişkenleri ve `.env` Dosyası Oluşturma:** Uygulamanın çalışması için gerekli API anahtarlarını, şifreleri ve port tanımlarını elle hata yapmadan interaktif bir terminal arayüzü üzerinden toplar ve projeye uygun `.env` dosyası üretir.
+2. **Hedef Dağıtım Ortamı Seçimi:** Hugging Face Spaces ve Yerel Docker ortamları arasındaki farklı konfigürasyon gereksinimlerini ayırt eder (HF Spaces için girilmesi gereken Secret/Variable listesini hazırlar).
+3. **Dashboard Güvenliği (Basic Auth):** Dış dünyaya açık arayüzlerde zorunlu olan yönetici kullanıcı adı ve şifresini belirler (boş bırakılırsa güçlü rastgele şifre üretir).
+4. **Yapay Zeka (AI) Sağlayıcı Entegrasyonları:** OpenRouter, OpenAI, Anthropic, DeepSeek, Groq vb. API anahtarlarını yapılandırır.
+5. **GitHub Yedekleme & Kurtarma (Disaster Recovery):** Konteyner sıfırlansa bile sohbet geçmişi ve ayarların kaybolmaması için GitHub tabanlı otomatik yedekleme deposunu bağlar.
+6. **PDF Summarizer Dizin Yapılandırması:** Döküman tarama ve özetleme işlemleri için Yerel Klasör (`Bilgi_Tabani/...`) veya WebDAV sunucusu (Nextcloud vb.) ayarlarını ilklendirir.
+7. **Veri Saklama (Volume Mount) & Otomatik Başlatma:** `$HOME/.hermes` yerel klasör veya `hermes-data` named volume seçimini alıp isteğe bağlı olarak Docker Compose veya `docker run` ile konteyneri anında başlatır.
+
+### Sihirbazı Çalıştırma:
 ```bash
+# Doğrudan çalıştırma:
 ./scripts/setup-wizard.sh
-```
 
-Sihirbaz şu adımları otomatik yönetir:
-1. **Hedef Ortam Seçimi:** Hugging Face Spaces veya Yerel Docker.
-2. **Kimlik Doğrulama & API Key Tanımlama:** `.env` dosyasına güvenli kayıt.
-3. **GitHub Yedekleme Kurulumu:** Otomatik geri yükleme/yedekleme bağlantısı.
-4. **PDF Summarizer Dizin Yapılandırması:** Yerel Klasör (Local) veya WebDAV Sunucu seçimi.
-5. **Veri Saklama Yöntemi Seçimi:** `$HOME/.hermes` (Yerel dizin) veya `hermes-data` (Docker Hacmi).
-6. **Otomatik Çalıştırma Tercihi:**
-   - **Docker Compose (Önerilen):** Hermes Agent ve `mcuadros/ofelia` zamanlayıcısını birlikte başlatır.
-   - **Docker run:** Sadece Hermes Agent konteynerini başlatır.
+# Veya hermes-start betiği üzerinden:
+./hermes-start wizard
+```
 
 ---
 

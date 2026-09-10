@@ -6,7 +6,6 @@ services:
       - .env
     ports:
       - "7860:7860"
-      - "7861:7861"
     volumes:
       - hermes-data:/home/user/.hermes
       - ./skills:/home/user/app/skills
