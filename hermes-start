@@ -1,8 +1,7 @@
 #!/bin/bash
 
-# MyHermes Docker Konteyner Başlatma Betiği
-# Bu betik, gereksiz portları kapatılmış ve optimize edilmiş olarak
-# Hermes Agent docker konteynerini arka planda başlatır.
+# MyHermes Docker Compose Başlatma Betiği
+# Bu betik, Hermes Agent ve Ofelia zamanlayıcısını Docker Compose ile arka planda başlatır.
 
 if [ "${1:-}" = "wizard" ] || [ "${1:-}" = "--wizard" ] || [ "${1:-}" = "-w" ]; then
     exec bash scripts/setup-wizard.sh
@@ -26,52 +25,35 @@ set -a
 source .env 2>/dev/null || true
 set +a
 
-# Varsa eski konteyneri durdur ve sil
-if docker ps -a --format '{{.Names}}' | grep -Eq "^hermes$"; then
-    echo "Eski 'hermes' konteyneri durduruluyor ve kaldırılıyor..."
-    docker stop hermes >/dev/null 2>&1 || true
-    docker rm hermes >/dev/null 2>&1 || true
-fi
+# Submodule'leri güncelle
+echo "Git Submodule'ler güncelleniyor..."
+git submodule update --init --recursive 2>/dev/null || true
 
-echo "Veri saklama (Volume Mount) yöntemini seçin:"
-echo "  1) Yerel Ev Dizini (Host üzerindeki ~/.hermes klasörünü bağlar - Önerilen)"
-echo "  2) Docker Hacmi (hermes-data adında izole bir Docker Named Volume kullanır)"
-read -rp "Seçiminiz (1-2) [Varsayılan: 1]: " volume_choice
-volume_choice=${volume_choice:-1}
-
-APP_PORT="${PORT:-7860}"
-
-DOCKER_ARGS=(
-    run -d
-    --name hermes
-    -p "$APP_PORT:$APP_PORT"
-)
-
-if [ "$volume_choice" = "1" ]; then
-    echo "✔ Yerel ev dizini (~/.hermes) kullanılacak."
-    mkdir -p "$HOME/.hermes"
-    DOCKER_ARGS+=(-v "$HOME/.hermes:/home/user/.hermes")
-else
-    echo "✔ Docker Hacmi (hermes-data) kullanılacak."
-    DOCKER_ARGS+=(-v "hermes-data:/home/user/.hermes")
-fi
-
-# Local PDF Summarizer dizin bağlantılarını ekle
+# Yerel PDF Summarizer dizinleri tanımlıysa önceden oluştur
 if [ "${PDF_SUMMARIZER_TARGET_TYPE:-local}" = "local" ]; then
     if [ -n "${PDF_SUMMARIZER_LOCAL_READING_LIST:-}" ]; then
         mkdir -p "$PDF_SUMMARIZER_LOCAL_READING_LIST"
-        DOCKER_ARGS+=(-v "$PDF_SUMMARIZER_LOCAL_READING_LIST:$PDF_SUMMARIZER_LOCAL_READING_LIST")
     fi
     if [ -n "${PDF_SUMMARIZER_LOCAL_SHELVES:-}" ]; then
         mkdir -p "$PDF_SUMMARIZER_LOCAL_SHELVES"
-        DOCKER_ARGS+=(-v "$PDF_SUMMARIZER_LOCAL_SHELVES:$PDF_SUMMARIZER_LOCAL_SHELVES")
     fi
 fi
 
-DOCKER_ARGS+=(--env-file .env my-hermes-agent)
+# Docker Compose komutunu tespit et
+if docker compose version &>/dev/null; then
+    COMPOSE_CMD="docker compose"
+elif command -v docker-compose &>/dev/null; then
+    COMPOSE_CMD="docker-compose"
+else
+    echo "❌ HATA: Sisteminizde 'docker compose' veya 'docker-compose' komutu bulunamadı!"
+    echo "Lütfen Docker Compose yükleyin."
+    exit 1
+fi
 
-echo "Hermes Agent konteyneri başlatılıyor..."
-docker "${DOCKER_ARGS[@]}"
+APP_PORT="${PORT:-7860}"
 
-echo "Hermes Agent başarıyla başlatıldı!"
+echo "Hermes Agent ve Ofelia zamanlayıcısı Docker Compose ile başlatılıyor..."
+$COMPOSE_CMD up -d --build
+
+echo "✔ Hermes Agent başarıyla başlatıldı!"
 echo "Dashboard: http://localhost:$APP_PORT"

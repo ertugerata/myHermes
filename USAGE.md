@@ -354,11 +354,12 @@ command = /opt/hermes/.venv/bin/hermes run --skill pdf-summarizer "PDF Summarize
 
 ## Yerel Ortamda Docker ile Çalıştırma
 
-### Docker Compose ile Çalıştırma (Ofelia Zamanlayıcı Dahil - Önerilen):
+### Docker Compose veya `hermes-start` Betiği ile Çalıştırma (Ofelia Zamanlayıcı Dahil - Önerilen):
 ```bash
-# Submodule'leri çekin
-git submodule update --init --recursive
+# hermes-start betiği ile tek komutla çalıştırma:
+./hermes-start
 
-# Docker Compose ile Hermes ve Ofelia servislerini başlatın
-docker-compose up -d --build
+# Veya manuel olarak Submodule'leri çekip Docker Compose ile başlatma:
+git submodule update --init --recursive
+docker compose up -d --build
 ```
