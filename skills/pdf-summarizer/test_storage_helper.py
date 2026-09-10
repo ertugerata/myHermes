@@ -28,5 +28,19 @@ class TestStorageHelper(unittest.TestCase):
         if os.path.exists(res):
             os.rmdir(res)
 
+    def test_resolve_local_path_custom_absolute(self):
+        # Test custom absolute path (e.g. /mnt/chromeos/...) does not fallback to prepending home
+        custom_path = '/mnt/chromeos/GoogleDrive/MyDrive/4hermes/Bilgi_Tabani/02_Okuma_Listesi'
+        res = storage_helper.resolve_local_path(custom_path)
+        self.assertEqual(res, custom_path)
+
+    def test_resolve_local_path_bilgi_tabani_fallback(self):
+        # Default /Bilgi_Tabani root path should fallback to home if root is non-writable
+        home = os.path.expanduser('~')
+        default_path = '/Bilgi_Tabani/02_Okuma_Listesi'
+        res = storage_helper.resolve_local_path(default_path)
+        expected = os.path.join(home, 'Bilgi_Tabani/02_Okuma_Listesi')
+        self.assertEqual(res, expected)
+
 if __name__ == '__main__':
     unittest.main()

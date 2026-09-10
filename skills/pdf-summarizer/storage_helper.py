@@ -38,28 +38,32 @@ load_env_files()
 def resolve_local_path(path_str):
     """
     Resolves local path. Expands environment variables (e.g. $HOME) and tilde (~).
-    If root / path is not writable, falls back to $HOME.
+    If root / path is not writable and path is a default root path (/Bilgi_Tabani),
+    falls back to $HOME. Custom paths are resolved directly without prepending $HOME.
     """
     expanded = os.path.expandvars(os.path.expanduser(path_str))
     p = Path(expanded).resolve()
 
-    # If path is at system root (e.g. /Bilgi_Tabani) and root is not writable
+    if p.exists():
+        return str(p)
+
     if path_str.startswith('/Bilgi_Tabani'):
         try:
             p.mkdir(parents=True, exist_ok=True)
             return str(p)
-        except PermissionError:
+        except (PermissionError, OSError):
             fallback_p = Path(os.path.expanduser('~')) / path_str.lstrip('/')
-            fallback_p.mkdir(parents=True, exist_ok=True)
+            try:
+                fallback_p.mkdir(parents=True, exist_ok=True)
+            except (PermissionError, OSError):
+                pass
             return str(fallback_p)
     else:
         try:
             p.mkdir(parents=True, exist_ok=True)
-            return str(p)
-        except PermissionError:
-            fallback_p = Path(os.path.expanduser('~')) / path_str.lstrip('/')
-            fallback_p.mkdir(parents=True, exist_ok=True)
-            return str(fallback_p)
+        except (PermissionError, OSError):
+            pass
+        return str(p)
 
 def get_config():
     target_type = os.environ.get('PDF_SUMMARIZER_TARGET_TYPE', os.environ.get('PDF_TARGET_TYPE', 'local')).lower()
