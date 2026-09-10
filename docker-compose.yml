@@ -5,7 +5,7 @@ services:
     env_file:
       - .env
     ports:
-      - "7860:7860"
+      - "${PORT:-7860}:${PORT:-7860}"
     volumes:
       - hermes-data:/home/user/.hermes
       - ./skills:/home/user/app/skills
