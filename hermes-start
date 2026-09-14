@@ -31,12 +31,9 @@ git submodule update --init --recursive 2>/dev/null || true
 
 # Yerel PDF Summarizer dizinleri tanımlıysa önceden oluştur
 if [ "${PDF_SUMMARIZER_TARGET_TYPE:-local}" = "local" ]; then
-    if [ -n "${PDF_SUMMARIZER_LOCAL_READING_LIST:-}" ]; then
-        mkdir -p "$PDF_SUMMARIZER_LOCAL_READING_LIST"
-    fi
-    if [ -n "${PDF_SUMMARIZER_LOCAL_SHELVES:-}" ]; then
-        mkdir -p "$PDF_SUMMARIZER_LOCAL_SHELVES"
-    fi
+    RL_PATH="${PDF_SUMMARIZER_LOCAL_READING_LIST:-./Bilgi_Tabani/02_Okuma_Listesi}"
+    SH_PATH="${PDF_SUMMARIZER_LOCAL_SHELVES:-./Bilgi_Tabani/03_Akilli_Raflar}"
+    mkdir -p "$RL_PATH" "$SH_PATH" 2>/dev/null || true
 fi
 
 # Docker Compose komutunu tespit et

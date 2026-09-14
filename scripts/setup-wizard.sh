@@ -145,8 +145,27 @@ else
     pdf_local_base_path="${pdf_local_base_path/#\~/$HOME}"
     pdf_local_base_path="${pdf_local_base_path%/}"
 
-    pdf_local_reading_list="${pdf_local_base_path}/Bilgi_Tabani/02_Okuma_Listesi"
-    pdf_local_shelves="${pdf_local_base_path}/Bilgi_Tabani/03_Akilli_Raflar"
+    # Auto-fix missing leading slash if path starts with common system root folders
+    if [[ "$pdf_local_base_path" != /* ]] && [[ "$pdf_local_base_path" != \$* ]]; then
+        first_segment="${pdf_local_base_path%%/*}"
+        case "$first_segment" in
+            mnt|media|home|Users|opt|var|tmp|etc|srv|Bilgi_Tabani)
+                pdf_local_base_path="/$pdf_local_base_path"
+                ;;
+        esac
+    fi
+
+    if [[ "$pdf_local_base_path" == */Bilgi_Tabani/02_Okuma_Listesi ]]; then
+        base_dir="${pdf_local_base_path%/Bilgi_Tabani/02_Okuma_Listesi}"
+        pdf_local_reading_list="$pdf_local_base_path"
+        pdf_local_shelves="${base_dir}/Bilgi_Tabani/03_Akilli_Raflar"
+    elif [[ "$pdf_local_base_path" == */Bilgi_Tabani ]]; then
+        pdf_local_reading_list="${pdf_local_base_path}/02_Okuma_Listesi"
+        pdf_local_shelves="${pdf_local_base_path}/03_Akilli_Raflar"
+    else
+        pdf_local_reading_list="${pdf_local_base_path}/Bilgi_Tabani/02_Okuma_Listesi"
+        pdf_local_shelves="${pdf_local_base_path}/Bilgi_Tabani/03_Akilli_Raflar"
+    fi
 
     echo -e "👉 Okuma Listesi Dizini: ${CYAN}$pdf_local_reading_list${NC}"
     echo -e "👉 Akıllı Raflar Dizini: ${CYAN}$pdf_local_shelves${NC}"

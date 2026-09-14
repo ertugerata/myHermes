@@ -40,9 +40,27 @@ def resolve_local_path(path_str):
     Resolves local path. Expands environment variables (e.g. $HOME) and tilde (~).
     If root / path is not writable and path is a default root path (/Bilgi_Tabani),
     falls back to $HOME. Custom paths are resolved directly without prepending $HOME.
+    Auto-fixes missing leading slashes for absolute system paths (e.g. mnt/...).
     """
+    if not path_str:
+        return path_str
+
+    path_str = path_str.strip().strip("'").strip('"')
+
+    # Auto-fix missing leading slash if path starts with common system root folders
+    if not path_str.startswith('/') and not path_str.startswith('~') and not path_str.startswith('$') and not path_str.startswith('.'):
+        first_segment = path_str.split('/', 1)[0]
+        common_roots = {'mnt', 'media', 'home', 'Users', 'opt', 'var', 'tmp', 'etc', 'srv', 'Bilgi_Tabani'}
+        if first_segment in common_roots:
+            path_str = '/' + path_str
+
     expanded = os.path.expandvars(os.path.expanduser(path_str))
-    p = Path(expanded).resolve()
+
+    # For absolute paths, use Path directly to prevent CWD prefixing on non-existent paths
+    if os.path.isabs(expanded):
+        p = Path(expanded)
+    else:
+        p = Path(expanded).resolve()
 
     if p.exists():
         return str(p)
@@ -52,7 +70,7 @@ def resolve_local_path(path_str):
             p.mkdir(parents=True, exist_ok=True)
             return str(p)
         except (PermissionError, OSError):
-            fallback_p = Path(os.path.expanduser('~')) / path_str.lstrip('/')
+            fallback_p = Path(os.path.expanduser('~/app')) / path_str.lstrip('/')
             try:
                 fallback_p.mkdir(parents=True, exist_ok=True)
             except (PermissionError, OSError):
@@ -61,15 +79,25 @@ def resolve_local_path(path_str):
     else:
         try:
             p.mkdir(parents=True, exist_ok=True)
+            return str(p)
         except (PermissionError, OSError):
-            pass
-        return str(p)
+            # If creating custom directory fails (e.g. permission error inside container),
+            # fall back to mapped app directory if it exists
+            if 'Bilgi_Tabani/02_Okuma_Listesi' in path_str:
+                app_p = Path(os.path.expanduser('~/app/Bilgi_Tabani/02_Okuma_Listesi'))
+                if app_p.exists():
+                    return str(app_p)
+            elif 'Bilgi_Tabani/03_Akilli_Raflar' in path_str:
+                app_p = Path(os.path.expanduser('~/app/Bilgi_Tabani/03_Akilli_Raflar'))
+                if app_p.exists():
+                    return str(app_p)
+            return str(p)
 
 def get_config():
     target_type = os.environ.get('PDF_SUMMARIZER_TARGET_TYPE', os.environ.get('PDF_TARGET_TYPE', 'local')).lower()
 
-    local_reading_list = os.environ.get('PDF_SUMMARIZER_LOCAL_READING_LIST', '/Bilgi_Tabani/02_Okuma_Listesi')
-    local_shelves = os.environ.get('PDF_SUMMARIZER_LOCAL_SHELVES', '/Bilgi_Tabani/03_Akilli_Raflar')
+    local_reading_list = os.environ.get('PDF_SUMMARIZER_LOCAL_READING_LIST', os.path.expanduser('~/app/Bilgi_Tabani/02_Okuma_Listesi'))
+    local_shelves = os.environ.get('PDF_SUMMARIZER_LOCAL_SHELVES', os.path.expanduser('~/app/Bilgi_Tabani/03_Akilli_Raflar'))
 
     webdav_url = os.environ.get('PDF_SUMMARIZER_WEBDAV_URL', os.environ.get('WEBDAV_URL', '')).rstrip('/')
     webdav_user = os.environ.get('PDF_SUMMARIZER_WEBDAV_USERNAME', os.environ.get('WEBDAV_USERNAME', ''))
