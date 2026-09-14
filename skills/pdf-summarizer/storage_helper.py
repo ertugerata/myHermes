@@ -70,7 +70,7 @@ def resolve_local_path(path_str):
             p.mkdir(parents=True, exist_ok=True)
             return str(p)
         except (PermissionError, OSError):
-            fallback_p = Path(os.path.expanduser('~')) / path_str.lstrip('/')
+            fallback_p = Path(os.path.expanduser('~/app')) / path_str.lstrip('/')
             try:
                 fallback_p.mkdir(parents=True, exist_ok=True)
             except (PermissionError, OSError):
@@ -79,15 +79,25 @@ def resolve_local_path(path_str):
     else:
         try:
             p.mkdir(parents=True, exist_ok=True)
+            return str(p)
         except (PermissionError, OSError):
-            pass
-        return str(p)
+            # If creating custom directory fails (e.g. permission error inside container),
+            # fall back to mapped app directory if it exists
+            if 'Bilgi_Tabani/02_Okuma_Listesi' in path_str:
+                app_p = Path(os.path.expanduser('~/app/Bilgi_Tabani/02_Okuma_Listesi'))
+                if app_p.exists():
+                    return str(app_p)
+            elif 'Bilgi_Tabani/03_Akilli_Raflar' in path_str:
+                app_p = Path(os.path.expanduser('~/app/Bilgi_Tabani/03_Akilli_Raflar'))
+                if app_p.exists():
+                    return str(app_p)
+            return str(p)
 
 def get_config():
     target_type = os.environ.get('PDF_SUMMARIZER_TARGET_TYPE', os.environ.get('PDF_TARGET_TYPE', 'local')).lower()
 
-    local_reading_list = os.environ.get('PDF_SUMMARIZER_LOCAL_READING_LIST', '/Bilgi_Tabani/02_Okuma_Listesi')
-    local_shelves = os.environ.get('PDF_SUMMARIZER_LOCAL_SHELVES', '/Bilgi_Tabani/03_Akilli_Raflar')
+    local_reading_list = os.environ.get('PDF_SUMMARIZER_LOCAL_READING_LIST', os.path.expanduser('~/app/Bilgi_Tabani/02_Okuma_Listesi'))
+    local_shelves = os.environ.get('PDF_SUMMARIZER_LOCAL_SHELVES', os.path.expanduser('~/app/Bilgi_Tabani/03_Akilli_Raflar'))
 
     webdav_url = os.environ.get('PDF_SUMMARIZER_WEBDAV_URL', os.environ.get('WEBDAV_URL', '')).rstrip('/')
     webdav_user = os.environ.get('PDF_SUMMARIZER_WEBDAV_USERNAME', os.environ.get('WEBDAV_USERNAME', ''))
