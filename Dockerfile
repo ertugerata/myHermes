@@ -1,7 +1,16 @@
 ARG HERMES_VERSION=v2026.9.7
+
+# Stage 1: Buzz CLI derleme aşaması
+FROM rust:1.85-bookworm AS buzz-builder
+RUN cargo install --git https://github.com/block/buzz buzz-cli
+
 FROM nousresearch/hermes-agent:${HERMES_VERSION}
 
 USER root
+
+# Buzz CLI ikili dosyasını kopyalıyoruz
+COPY --from=buzz-builder /usr/local/cargo/bin/buzz /usr/local/bin/buzz
+RUN chmod +x /usr/local/bin/buzz
 
 # Gerekli ek derleme paketlerini kuruyoruz ve supervisor, curl, ca-certificates ekliyoruz
 RUN apt-get update && apt-get install -y --no-install-recommends \
