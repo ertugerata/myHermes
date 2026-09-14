@@ -15,6 +15,10 @@ Bu kılavuz, **Hermes Agent** web arayüzünün (Dashboard) Hugging Face Spaces 
 2. **İnteraktif Kurulum Sihirbazı (`setup-wizard.sh`) Açıklamaları:**
    - Sihirbazın neden başlatıldığı, hangi problemleri çözdüğü ve interaktif olarak `.env` yapılandırmasını nasıl oluşturduğu kılavuza detaylı olarak eklenmiştir.
 
+3. **`pdf-summarizer` Otomatik Bağımlılık ve Kurulum Yönetimi:**
+   - `pdf-summarizer` skill'inin çalışması için gereken döküman okuma/işleme kütüphaneleri (`pypdf`, `pdfplumber`, `python-docx`) `requirements.txt` dosyasına eklenmiştir.
+   - `skills/pdf-summarizer/storage_helper.py` betiğine `setup` ve `check-deps` komutları eklenmiştir. Skill çağırıldığında eksik Python paketleri (`httpx`, `pypdf`, `pdfplumber`, `python-docx`) dinamik olarak tespit edilir ve otomatik olarak kurulur.
+
 ---
 
 ## 🚀 Başlangıç ve Çalıştırma
@@ -185,9 +189,15 @@ Hermes Agent, döküman ve konuları Nobel ödüllü fizikçi Richard Feynman'ı
 | `PDF_SUMMARIZER_WEBDAV_SHELVES` | Değişken | `/Bilgi_Tabani/03_Akilli_Raflar` | WebDAV akıllı raflar klasör yolu |
 
 ### Depolama Yardımcısı (`storage_helper.py`):
-Skill içerisinde dosya listeleme, indirme, yükleme, taşıma ve varsayılan klasör yapısını ilklendirme işlemleri `skills/pdf-summarizer/storage_helper.py` betiği ile yönetilir:
+Skill içerisinde bağımlılık kontrolü, dosya listeleme, indirme, yükleme, taşıma ve varsayılan klasör yapısını ilklendirme işlemleri `skills/pdf-summarizer/storage_helper.py` betiği ile yönetilir:
 
 ```bash
+# Gerekli tüm Python paketlerini (httpx, pypdf, pdfplumber, python-docx) kurma ve klasör yapısını ilklendirme (Başlangıç Kurulumu):
+python3 skills/pdf-summarizer/storage_helper.py setup
+
+# Gerekli bağımlılıkların varlığını kontrol etme:
+python3 skills/pdf-summarizer/storage_helper.py check-deps
+
 # Öntanımlı klasör yapısını manuel oluşturma/doğrulama:
 python3 skills/pdf-summarizer/storage_helper.py init-dirs
 
