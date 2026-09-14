@@ -34,6 +34,13 @@ class TestStorageHelper(unittest.TestCase):
         res = storage_helper.resolve_local_path(custom_path)
         self.assertEqual(res, custom_path)
 
+    def test_resolve_local_path_missing_leading_slash(self):
+        # Test missing leading slash on root system path auto-adds leading slash
+        missing_slash_path = 'mnt/chromeos/GoogleDrive/MyDrive/4hermes/Bilgi_Tabani/02_Okuma_Listesi'
+        res = storage_helper.resolve_local_path(missing_slash_path)
+        expected = '/mnt/chromeos/GoogleDrive/MyDrive/4hermes/Bilgi_Tabani/02_Okuma_Listesi'
+        self.assertEqual(res, expected)
+
     def test_resolve_local_path_bilgi_tabani_fallback(self):
         # Default /Bilgi_Tabani root path should fallback to home if root is non-writable
         home = os.path.expanduser('~')

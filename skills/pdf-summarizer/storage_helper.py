@@ -40,9 +40,27 @@ def resolve_local_path(path_str):
     Resolves local path. Expands environment variables (e.g. $HOME) and tilde (~).
     If root / path is not writable and path is a default root path (/Bilgi_Tabani),
     falls back to $HOME. Custom paths are resolved directly without prepending $HOME.
+    Auto-fixes missing leading slashes for absolute system paths (e.g. mnt/...).
     """
+    if not path_str:
+        return path_str
+
+    path_str = path_str.strip().strip("'").strip('"')
+
+    # Auto-fix missing leading slash if path starts with common system root folders
+    if not path_str.startswith('/') and not path_str.startswith('~') and not path_str.startswith('$') and not path_str.startswith('.'):
+        first_segment = path_str.split('/', 1)[0]
+        common_roots = {'mnt', 'media', 'home', 'Users', 'opt', 'var', 'tmp', 'etc', 'srv', 'Bilgi_Tabani'}
+        if first_segment in common_roots:
+            path_str = '/' + path_str
+
     expanded = os.path.expandvars(os.path.expanduser(path_str))
-    p = Path(expanded).resolve()
+
+    # For absolute paths, use Path directly to prevent CWD prefixing on non-existent paths
+    if os.path.isabs(expanded):
+        p = Path(expanded)
+    else:
+        p = Path(expanded).resolve()
 
     if p.exists():
         return str(p)
