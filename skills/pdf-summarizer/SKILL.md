@@ -27,6 +27,12 @@ Varsayılan klasör yapısı (`/Bilgi_Tabani/02_Okuma_Listesi/` ve `/Bilgi_Taban
 Hermes Agent bu beceriyi çalıştırırken, Yerel veya WebDAV fark etmeksizin dosya işlemlerini ve klasör yapısı kurulumunu otomatik yöneten yardımcı betiği kullanabilir:
 
 ```bash
+# Gerekli bağımlılıkları kontrol etme/kurma ve dizinleri ilklendirip hazırlama (Başlangıç Kurulumu):
+python3 skills/pdf-summarizer/storage_helper.py setup
+
+# Sadece bağımlılıkları kontrol etme:
+python3 skills/pdf-summarizer/storage_helper.py check-deps
+
 # Öntanımlı okuma listesi ve raf klasör yapılarını otomatik oluşturma/ilklendirme:
 python3 skills/pdf-summarizer/storage_helper.py init-dirs
 
@@ -52,6 +58,10 @@ python3 skills/pdf-summarizer/storage_helper.py move-to-shelf "Rapor_Adi.pdf" "Y
 ---
 
 ## WORKFLOW & INSTRUCTIONS:
+
+### 0. Bağımlılık ve Dizin Kurulum Adımı (Başlangıç Hazırlığı)
+1. Skill çağırıldığında veya çalıştırıldığında ilk iş olarak `python3 skills/pdf-summarizer/storage_helper.py setup` komutunu çalıştır.
+2. Bu komut, döküman işleme ve depolama için gerekli Python paketlerinin (`httpx`, `pypdf`, `pdfplumber`, `python-docx`) ve hedef depolama dizinlerinin kurulu olduğunu doğrulayacak, eksik paketleri otomatik olarak kuracaktır.
 
 ### 1. Dosya Tespit ve Tarama Adımı
 1. `python3 skills/pdf-summarizer/storage_helper.py list` komutunu çalıştırarak okuma listesindeki işlenecek `.pdf`, `.doc`, `.docx` dökümanlarını tespit et.

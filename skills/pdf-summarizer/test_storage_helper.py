@@ -213,6 +213,32 @@ class TestStorageHelper(unittest.TestCase):
             self.assertIn('Notlar.txt', names)
             self.assertNotIn('Resim.png', names)
 
+    @patch('importlib.util.find_spec')
+    @patch('subprocess.check_call')
+    def test_ensure_dependencies_missing_package(self, mock_check_call, mock_find_spec):
+        def side_effect(mod_name):
+            if mod_name == 'pypdf':
+                return None
+            return MagicMock()
+
+        mock_find_spec.side_effect = side_effect
+        missing = storage_helper.ensure_dependencies(quiet=True)
+        self.assertIn('pypdf>=4.0.0', missing)
+        mock_check_call.assert_called_once()
+
+    @patch('importlib.util.find_spec')
+    def test_ensure_dependencies_all_present(self, mock_find_spec):
+        mock_find_spec.return_value = MagicMock()
+        missing = storage_helper.ensure_dependencies(quiet=True)
+        self.assertEqual(missing, [])
+
+    @patch('storage_helper.ensure_dependencies')
+    @patch('storage_helper.cmd_init_dirs')
+    def test_cmd_setup(self, mock_cmd_init_dirs, mock_ensure_deps):
+        storage_helper.cmd_setup()
+        mock_ensure_deps.assert_called_once_with(quiet=False)
+        mock_cmd_init_dirs.assert_called_once()
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -525,6 +525,54 @@ def cmd_upload_summary(local_summary_file: str, category_name: str, summary_file
         print(f"✔ Özet raporu yerel rafa kaydedildi: {target_local}")
 
 
+REQUIRED_PACKAGES = {
+    'httpx': 'httpx>=0.24.0',
+    'pypdf': 'pypdf>=4.0.0',
+    'pdfplumber': 'pdfplumber>=0.10.0',
+    'docx': 'python-docx>=1.0.0',
+}
+
+
+def ensure_dependencies(quiet: bool = False) -> List[str]:
+    """
+    pdf-summarizer için gerekli tüm Python paketlerinin (httpx, pypdf, pdfplumber, python-docx)
+    kurulu olup olmadığını kontrol eder ve eksik olanları otomatik kurar.
+    """
+    import importlib.util
+    import subprocess
+
+    missing = []
+    for mod_name, pkg_spec in REQUIRED_PACKAGES.items():
+        if importlib.util.find_spec(mod_name) is None:
+            missing.append(pkg_spec)
+
+    if missing:
+        if not quiet:
+            print(f"📦 PDF Summarizer eksik bağımlılıklar tespit edildi, kuruluyor: {', '.join(missing)}")
+        try:
+            subprocess.check_call(
+                [sys.executable, "-m", "pip", "install", "--no-cache-dir"] + missing
+            )
+            if not quiet:
+                print("✅ Bağımlılıklar başarıyla kuruldu.")
+        except Exception as e:
+            if not quiet:
+                print(f"⚠️ Bağımlılıklar kurulurken bir hata oluştu: {e}")
+            raise e
+    else:
+        if not quiet:
+            print("✅ Tüm PDF Summarizer bağımlılıkları mevcut.")
+    return missing
+
+
+def cmd_setup() -> None:
+    """Bağımlılıkları kontrol eder/kurar ve okuma listesi ile akıllı raflar dizinlerini ilklendirir."""
+    print("🚀 PDF Summarizer Başlangıç Kurulumu ve Doğrulama Başlatılıyor...")
+    ensure_dependencies(quiet=False)
+    cmd_init_dirs()
+    print("✅ PDF Summarizer kullanım için hazır.")
+
+
 def cmd_move_to_shelf(filename: str, category_name: str, new_filename: Optional[str] = None) -> None:
     """İşlenen dökümanı okuma listesinden kategori rafına taşır."""
     clean_filename = safe_filename(filename)
@@ -558,6 +606,8 @@ def main() -> None:
     parser.add_argument('--json', action='store_true', help='Çıktıyı JSON formatında sunar (status ve list komutları için)')
     subparsers = parser.add_subparsers(dest="command")
 
+    subparsers.add_parser("setup", help="Gerekli Python paketlerini kurar ve okuma/raf dizinlerini ilklendirir")
+    subparsers.add_parser("check-deps", help="Gerekli Python paketlerinin varlığını kontrol eder ve eksikleri kurar")
     subparsers.add_parser("init-dirs", help="Varsayılan okuma listesi ve raf dizinlerini ilklendirir")
     subparsers.add_parser("status", help="Mevcut depolama yapılandırmasını gösterir ve bağlantıyı test eder")
     subparsers.add_parser("list", help="Okuma listesindeki döküman dosyalarını listeler")
@@ -581,7 +631,11 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    if args.command == "init-dirs":
+    if args.command == "setup":
+        cmd_setup()
+    elif args.command == "check-deps":
+        ensure_dependencies(quiet=False)
+    elif args.command == "init-dirs":
         cmd_init_dirs()
     elif args.command == "status":
         cmd_status(json_output=args.json)
