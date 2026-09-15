@@ -4,6 +4,9 @@ ARG HERMES_VERSION=v2026.9.14
 FROM rust:bookworm AS buzz-builder
 RUN cargo install --git https://github.com/block/buzz buzz-cli
 
+# Stage 2: Ofelia ikili dosyasını resmi imajdan alıyoruz
+FROM mcuadros/ofelia:v0.3.22 AS ofelia-builder
+
 FROM nousresearch/hermes-agent:${HERMES_VERSION}
 
 USER root
@@ -11,6 +14,10 @@ USER root
 # Buzz CLI ikili dosyasını kopyalıyoruz
 COPY --from=buzz-builder /usr/local/cargo/bin/buzz /usr/local/bin/buzz
 RUN chmod +x /usr/local/bin/buzz
+
+# Ofelia ikili dosyasını kopyalıyoruz (docker.sock gerekmiyor, job-local kullanacağız)
+COPY --from=ofelia-builder /usr/bin/ofelia /usr/local/bin/ofelia
+RUN chmod +x /usr/local/bin/ofelia
 
 # Gerekli ek derleme paketlerini kuruyoruz ve supervisor, curl, ca-certificates ekliyoruz
 RUN apt-get update && apt-get install -y --no-install-recommends \
