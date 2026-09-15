@@ -25,6 +25,6 @@ Hermes Agent dashboard, skills and automation environment ready for local or ser
    ```
 
 4. **Access Dashboard:**
-   Open `http://localhost:7860` (or configured port) in your browser.
+   Open `http://localhost:7860` (or `http://<server-ip>:7860`) in your browser.
 
 For detailed documentation, configuration options, backup options, and skill details, see [USAGE.md](USAGE.md).

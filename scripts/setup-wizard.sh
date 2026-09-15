@@ -123,8 +123,8 @@ if [ "$pdf_target_choice" = "2" ]; then
 else
     PDF_SUMMARIZER_TARGET_TYPE="local"
     echo -e "\n👉 ${CYAN}Yerel Klasör Ayarları:${NC}"
-    read -rp "Yerel Ana Dizin Yolu (Klasörler bu dizin altında 'Bilgi_Tabani/...' olarak oluşturulacaktır) [Varsayılan: $HOME]: " pdf_local_base_path
-    pdf_local_base_path=${pdf_local_base_path:-$HOME}
+    read -rp "Yerel/Sunucu Ana Dizin Yolu (Klasörler bu dizin altında 'Bilgi_Tabani/...' olarak oluşturulacaktır) [Varsayılan: $PROJECT_ROOT]: " pdf_local_base_path
+    pdf_local_base_path=${pdf_local_base_path:-$PROJECT_ROOT}
     pdf_local_base_path="${pdf_local_base_path/#\~/$HOME}"
     pdf_local_base_path="${pdf_local_base_path%/}"
 
@@ -232,9 +232,16 @@ echo -e "\n${GREEN}${BOLD}======================================================
 echo "   YEREL VEYA SUNUCU (DOCKER) - ÇALIŞTIRMA REHBERİ"
 echo -e "=========================================================${NC}"
 echo -e "Yerel makinenizde veya sunucunuzda çalıştırmak için aşağıdaki komutu kullanabilirsiniz:"
-echo -e "  ${CYAN}docker compose up -d --build${NC} (Ofelia zamanlayıcı ve bağlı hacimler dahil)"
+echo -e "  ${CYAN}docker compose up -d --build${NC} (Dashboard, GitHub yedekleme ve entegre Ofelia zamanlayıcısı dahil)"
 echo
-echo -e "Arayüze ${BOLD}http://localhost:$app_port${NC} adresinden ulaşabilirsiniz."
+SERVER_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
+echo -e "Arayüz Erişim Adresleri:"
+echo -e "  - Yerel (Local):   ${BLUE}${BOLD}http://localhost:$app_port${NC}"
+if [ -n "$SERVER_IP" ] && [ "$SERVER_IP" != "127.0.0.1" ]; then
+    echo -e "  - Sunucu (Server): ${BLUE}${BOLD}http://$SERVER_IP:$app_port${NC}"
+else
+    echo -e "  - Sunucu (Server): ${BLUE}${BOLD}http://<SUNUCU_IP>:$app_port${NC}"
+fi
 echo -e "Kullanıcı Adı: ${CYAN}$db_username${NC}"
 echo -e "Şifre: ${CYAN}$db_password${NC}"
 echo
@@ -256,8 +263,11 @@ if [[ "$auto_run" =~ ^[EeYy]$ ]]; then
 
     if [ -n "$COMPOSE_CMD" ]; then
         $COMPOSE_CMD up -d --build
-        echo -e "${GREEN}${BOLD}✔ Hermes Agent ve Ofelia zamanlayıcısı Docker Compose ile başlatıldı!${NC}"
-        echo -e "Arayüze erişmek için: ${BLUE}${BOLD}http://localhost:$app_port${NC}"
+        echo -e "${GREEN}${BOLD}✔ Hermes Agent (ve entegre Ofelia zamanlayıcısı) Docker Compose ile başarıyla başlatıldı!${NC}"
+        echo -e "Arayüz Adresi (Yerel): ${BLUE}${BOLD}http://localhost:$app_port${NC}"
+        if [ -n "$SERVER_IP" ] && [ "$SERVER_IP" != "127.0.0.1" ]; then
+            echo -e "Arayüz Adresi (Sunucu): ${BLUE}${BOLD}http://$SERVER_IP:$app_port${NC}"
+        fi
     else
         echo -e "${RED}❌ HATA: Sisteminizde 'docker-compose' veya 'docker compose' komutu bulunamadı!${NC}"
         echo -e "Lütfen Docker Compose'u yükleyin veya manuel olarak '${CYAN}docker compose up -d --build${NC}' komutunu çalıştırın."

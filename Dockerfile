@@ -5,7 +5,7 @@ FROM rust:bookworm AS buzz-builder
 RUN cargo install --git https://github.com/block/buzz buzz-cli
 
 # Stage 2: Ofelia ikili dosyasını resmi imajdan alıyoruz
-FROM mcuadros/ofelia:v0.3.22 AS ofelia-builder
+FROM mcuadros/ofelia:0.3.22 AS ofelia-builder
 
 FROM nousresearch/hermes-agent:${HERMES_VERSION}
 

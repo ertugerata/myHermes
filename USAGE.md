@@ -44,7 +44,8 @@ Konteyner başlatıldığında supervisord, aşağıdaki süreçleri hiyerarşik
 1. **`github-restore` (Öncelik: 20):** Başlangıçta varsa GitHub üzerindeki `.hermes` yedeklerinizi geri yükler.
 2. **`auth-config` (Öncelik: 30):** Çevre değişkenlerinden gelen dashboard giriş bilgilerini, Buzz platform ayarlarını ve kimlik doğrulama eklentisini güvenle hazırlar.
 3. **`hermes-dashboard` (Öncelik: 40):** 7860 portunda çalışacak olan ana kontrol panelini ayağa kaldırır.
-4. **`backup-loop` (Öncelik: 60):** Her 2 saatte bir değişen verileri algılayarak GitHub yedek deposuna push eder.
+4. **`ofelia` (Öncelik: 50):** Konteyner içinde zamanlanmış görevleri (`job-local`) yöneten Ofelia cron zamanlayıcısını çalıştırır.
+5. **`backup-loop` (Öncelik: 60):** Her 2 saatte bir değişen verileri algılayarak GitHub yedek deposuna push eder.
 
 ---
 
@@ -135,9 +136,9 @@ Hermes Agent çalışma zamanında konfigürasyon dosyasını varsayılan olarak
 
 ---
 
-## ⏰ `mcuadros/ofelia` Zamanlayıcı ve PDF Summarizer Otomasyonu
+## ⏰ Entegre `mcuadros/ofelia` Zamanlayıcı ve PDF Summarizer Otomasyonu
 
-İşlemleri zamanlanmış görev (Cron) olarak çalıştırmak amacıyla `mcuadros/ofelia` Docker konteyneri entegre edilmiştir.
+İşlemleri zamanlanmış görev (Cron) olarak çalıştırmak amacıyla `mcuadros/ofelia` binary'si doğrudan Dockerfile içerisine dahil edilmiş ve Supervisord tarafından yönetilmektedir. Artık ayrı bir sidecar konteyner veya `docker.sock` erişimine gerek duymadan tüm servisler (Dashboard, GitHub Yedekleme ve Ofelia) tek bir konteyner içinde çalışır.
 
 ### Yerel Ortamda Docker ile Çalıştırma:
 ```bash

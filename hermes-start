@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # MyHermes Docker Compose Başlatma Betiği
-# Bu betik, Hermes Agent ve Ofelia zamanlayıcısını Docker Compose ile arka planda başlatır.
+# Bu betik, Hermes Agent ve entegre Ofelia zamanlayıcısını Docker Compose ile arka planda başlatır.
 
 if [ "${1:-}" = "wizard" ] || [ "${1:-}" = "--wizard" ] || [ "${1:-}" = "-w" ]; then
     exec bash scripts/setup-wizard.sh
@@ -48,9 +48,15 @@ else
 fi
 
 APP_PORT="${PORT:-7860}"
+SERVER_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
 
-echo "Hermes Agent ve Ofelia zamanlayıcısı Docker Compose ile başlatılıyor..."
+echo "Hermes Agent (ve entegre Ofelia zamanlayıcısı) Docker Compose ile başlatılıyor..."
 $COMPOSE_CMD up -d --build
 
 echo "✔ Hermes Agent başarıyla başlatıldı!"
-echo "Dashboard: http://localhost:$APP_PORT"
+echo "Dashboard (Yerel / Local):   http://localhost:$APP_PORT"
+if [ -n "$SERVER_IP" ] && [ "$SERVER_IP" != "127.0.0.1" ]; then
+    echo "Dashboard (Sunucu / Server): http://$SERVER_IP:$APP_PORT"
+else
+    echo "Dashboard (Sunucu / Server): http://<SUNUCU_IP>:$APP_PORT"
+fi
