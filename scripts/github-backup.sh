@@ -164,7 +164,7 @@ do_git_restore() {
     write_user_log "INFO" "=== VERİ GERİ YÜKLEME AŞAMASI (GITHUB BACKUP) ==="
     if [ -z "$REPO_URL" ]; then
         write_user_log "WARNING" "GITHUB_BACKUP_REPO tanımlı değil. GitHub yedekleme geri yüklemesi atlanıyor."
-        if [ -n "$HF_TOKEN" ] && [ -f "$HOME/app/hermes_backup.tar.gz" ]; then
+        if [ -f "$HOME/app/hermes_backup.tar.gz" ]; then
             safe_extract_tar_backup "$HOME/app/hermes_backup.tar.gz"
         fi
         return 0

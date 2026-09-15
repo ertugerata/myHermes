@@ -1,33 +1,33 @@
 # MyHermes Projesi - Detaylı Kullanım Kılavuzu (USAGE.md)
 
-Bu kılavuz, **Hermes Agent** web arayüzünün (Dashboard) Hugging Face Spaces veya yerel bir Docker ortamında nasıl kurulacağını, çalıştırılacağını, gelişmiş ağ (DNS) çözümlerini, güvenlik yapılandırmalarını, yedekleme mekanizmasını, **önceden yapılan ayarların ve verilerin nasıl korunduğunu (State Preservation)**, **`config.yaml` yapılandırmasının nasıl yüklendiğini**, **beceri (skills) klasörlerinin nasıl bağlandığını (volume)**, **`buzz-skills` (Kendi Özel Relay'iniz veya Genel Relay) kullanımı**, **`pdf-summarizer` Dizin Yapılandırması (Local / WebDAV)** ve **`mcuadros/ofelia` zamanlayıcısı ile otomatik görev çalıştırmayı** detaylandırmaktadır.
+Bu kılavuz, **Hermes Agent** web arayüzünün (Dashboard) yerel bir ortamda veya herhangi bir sunucuda (Docker / Docker Compose) nasıl kurulacağını, çalıştırılacağını, güvenlik yapılandırmalarını, yedekleme mekanizmasını, **önceden yapılan ayarların ve verilerin nasıl korunduğunu (State Preservation)**, **`config.yaml` yapılandırmasının nasıl yüklendiğini**, **beceri (skills) klasörlerinin nasıl bağlandığını (volume)**, **`buzz-skills` kullanımı**, **`pdf-summarizer` Dizin Yapılandırması (Local / WebDAV)** ve **`mcuadros/ofelia` zamanlayıcısı ile otomatik görev çalıştırmayı** detaylandırmaktadır.
 
 ---
 
 ## 📌 Son Güncellemeler ve Yapılan Değişiklikler
 
-1. **`ttyd` ve Web TUI Entegrasyonunun Kaldırılması:**
-   - Artık ihtiyaç duyulmayan `ttyd` (web tabanlı TUI terminali) bağımlılığı ve buna bağlı olarak `7861` portu projeden tamamen kaldırılmıştır.
-   - `Dockerfile` içerisindeki `COPY --from=tsl0922/ttyd:1.7.7` ve `EXPOSE 7861` satırları temizlenmiştir.
-   - `supervisord.conf` konfigürasyonundaki `[program:hermes-tui-web]` servisi kaldırılmıştır.
-   - `hermes-start` ve `docker-compose.yml` dosyalarındaki `7861` port yönlendirmeleri silinmiş, sistem sadece ana web kontrol paneline (`7860` portu) odaklanmıştır.
+1. **Hugging Face Bağımlılıklarının Temizlenmesi:**
+   - Hugging Face Spaces entegrasyonu, DoH DNS çözümleyicileri ve Hugging Face bağımlılıkları projeden temizlenmiş; sistem yerel ve sunucu dağıtımları için optimize edilmiştir.
 
-2. **İnteraktif Kurulum Sihirbazı (`setup-wizard.sh`) Açıklamaları:**
-   - Sihirbazın neden başlatıldığı, hangi problemleri çözdüğü ve interaktif olarak `.env` yapılandırmasını nasıl oluşturduğu kılavuza detaylı olarak eklenmiştir.
+2. **`ttyd` ve Web TUI Entegrasyonunun Kaldırılması:**
+   - Artık ihtiyaç duyulmayan `ttyd` bağımlılığı ve buna bağlı olarak `7861` portu projeden kaldırılmıştır.
+   - Sistem sadece ana web kontrol paneline (`7860` portu) odaklanmıştır.
 
-3. **`pdf-summarizer` Otomatik Bağımlılık ve Kurulum Yönetimi:**
+3. **İnteraktif Kurulum Sihirbazı (`setup-wizard.sh`) Açıklamaları:**
+   - İnteraktif `.env` yapılandırması oluşturan kurulum sihirbazı güncellenmiştir.
+
+4. **`pdf-summarizer` Otomatik Bağımlılık ve Kurulum Yönetimi:**
    - `pdf-summarizer` skill'inin çalışması için gereken döküman okuma/işleme kütüphaneleri (`pypdf`, `pdfplumber`, `python-docx`) `requirements.txt` dosyasına eklenmiştir.
-   - `skills/pdf-summarizer/storage_helper.py` betiğine `setup` ve `check-deps` komutları eklenmiştir. Skill çağırıldığında eksik Python paketleri (`httpx`, `pypdf`, `pdfplumber`, `python-docx`) dinamik olarak tespit edilir ve otomatik olarak kurulur.
 
 ---
 
 ## 🚀 Başlangıç ve Çalıştırma
 
-Bu proje, Hermes Agent Dashboard'u bir Docker konteyneri içinde barındırır. Hugging Face Spaces veya yerel konteyner ortamlarında sorunsuz, yüksek performanslı ve güvenli çalışacak şekilde optimize edilmiştir.
+Bu proje, Hermes Agent Dashboard'u bir Docker konteyneri içinde barındırır. Yerel konteyner veya sunucu ortamlarında sorunsuz, yüksek performanslı ve güvenli çalışacak şekilde optimize edilmiştir.
 
 ### ⚙️ Süreç Yönetimi (Supervisor) ve Servis Hiyerarşisi
 
-Bu projede tüm arka plan süreçleri, otomatik kurtarma, periyodik yedekleme ve sıralı başlatma özellikleri endüstriyel standarttaki **supervisord** süreç yöneticisi tarafından yönetilir.
+Bu projede tüm arka plan süreçleri, otomatik kurtarma, periyodik yedekleme ve sıralı başlatma özellikleri **supervisord** süreç yöneticisi tarafından yönetilir.
 
 #### 🔌 Sunulan Web Arayüzü ve Erişim Portu
 
@@ -35,19 +35,16 @@ Bu projede tüm arka plan süreçleri, otomatik kurtarma, periyodik yedekleme ve
 | :--- | :--- | :--- | :--- |
 | **Kontrol Paneli (Dashboard)** | `7860` | `http://localhost:7860` | Web yönetim arayüzü, sohbet, eklentiler ve genel konfigürasyon. |
 
-> 💡 **Hugging Face Spaces Ayarı:** Hugging Face Spaces üzerinde dağıtırken arayüze erişebilmek için **Settings -> Repository -> Ports** bölümünde `7860` portunun eklendiğinden emin olun.
-
 ---
 
 #### ⚙️ Supervisord Süreç Yapılandırması ve Sıralı Başlatma
 
 Konteyner başlatıldığında supervisord, aşağıdaki süreçleri hiyerarşik öncelik (priority) değerlerine göre sırasıyla ve güvenli bir şekilde çalıştırır:
 
-1. **`dns-resolve` (Öncelik: 10):** DoH (DNS-over-HTTPS) ön çözümleme servisini (`https://1.1.1.1/dns-query` ve `https://dns.google/resolve` uç noktaları ile) başlatarak engelli alan adlarını tespit eder.
-2. **`github-restore` (Öncelik: 20):** Başlangıçta varsa GitHub üzerindeki `.hermes` yedeklerinizi geri yükler.
-3. **`auth-config` (Öncelik: 30):** Çevre değişkenlerinden gelen dashboard giriş bilgilerini, Buzz platform ayarlarını ve kimlik doğrulama eklentisini güvenle hazırlar.
-4. **`hermes-dashboard` (Öncelik: 40):** 7860 portunda çalışacak olan ana kontrol panelini ayağa kaldırır.
-5. **`backup-loop` (Öncelik: 60):** Her 2 saatte bir değişen verileri algılayarak GitHub yedek deposuna push eder.
+1. **`github-restore` (Öncelik: 20):** Başlangıçta varsa GitHub üzerindeki `.hermes` yedeklerinizi geri yükler.
+2. **`auth-config` (Öncelik: 30):** Çevre değişkenlerinden gelen dashboard giriş bilgilerini, Buzz platform ayarlarını ve kimlik doğrulama eklentisini güvenle hazırlar.
+3. **`hermes-dashboard` (Öncelik: 40):** 7860 portunda çalışacak olan ana kontrol panelini ayağa kaldırır.
+4. **`backup-loop` (Öncelik: 60):** Her 2 saatte bir değişen verileri algılayarak GitHub yedek deposuna push eder.
 
 ---
 
@@ -67,9 +64,9 @@ supervisorctl tail -f hermes-dashboard
 
 ## 🛡️ Önceden Yapılan Ayarların ve Verilerin Korunması (State Preservation)
 
-Hermes Agent üzerinde yaptığınız özelleştirmelerin, geçmiş sohbet verilerinin, kayıtlı ayarların (`config.yaml`), API anahtarlarının ve yüklenen becerilerin (skills) korunması şu 3 temel mekanizma ile garanti altına alınır:
+Hermes Agent üzerinde yaptığınız özelleştirmelerin, geçmiş sohbet verilerinin, kayıtlı ayarların (`config.yaml`), API anahtarlarının ve yüklenen becerilerin (skills) korunması şu temel mekanizmalar ile garanti altına alınır:
 
-### 1. Veri Saklama Yöntemi Seçimi (Data Volume vs. Local Directory)
+### 1. Veri Saklama Yöntemi Seçimi
 Kurulum sihirbazı (`scripts/setup-wizard.sh`) veya `hermes-start` betiği üzerinden verilerinizin saklanacağı yöntemi seçebilirsiniz:
 - **Seçenek A: Yerel Ev Dizini (Local Host Directory - `$HOME/.hermes`):**
   Host makinenizdeki `~/.hermes` dizinini konteyner içindeki `/home/user/.hermes` konumuna bağlar. Konteyner silinse veya baştan derlense dahi verileriniz bilgisayarınızda kalıcı olarak saklanır.
@@ -79,28 +76,20 @@ Kurulum sihirbazı (`scripts/setup-wizard.sh`) veya `hermes-start` betiği üzer
 ### 2. GitHub Otomatik Yedekleme ve Geri Yükleme (Automatic Backup & Restore)
 Konteyner her başlatıldığında `scripts/start.sh` önceden yapılandırılmış GitHub yedek deponuzdan (`GITHUB_BACKUP_REPO` ve `GITHUB_TOKEN`) verileri indirir.
 - `.hermes` veritabanı, oturum geçmişleri ve `config.yaml` dosyası otomatik geri yüklenir.
-- Sistem her 2 saatte bir ve konteyner durdurulurken (`SIGTERM`) güncel durumu GitHub deponuza geri push eder.
-
-### 3. Versiyon Güncelleme Entegrasyonu (`scripts/update-version.sh`)
-Uygulama sürümünü güncellerken verilerinizin veya özelleştirilmiş ayarlarınızın silinmesi söz konusu değildir:
-- `VERSION.txt` dosyası üzerinden Hermes imaj sürümü güncellenir.
-- `scripts/update-version.sh` betiği `Dockerfile` içerisindeki `ARG HERMES_VERSION` değerini günceller.
-- Konteyner yeniden derlendiğinde (`docker-compose up -d --build` veya `docker build`), verileriniz bağlı olan hacim (`$HOME/.hermes` veya `hermes-data`) ya da GitHub yedeği sayesinde **birebir korunarak aktarılır**.
+- Sistem her 2 saatte bir ve konteyner durdurulurken (`SIGTERM`) güncul durumu GitHub deponuza geri push eder.
 
 ---
 
-## 🧙‍♂️ İnteraktif Kurulum Sihirbazı Neden Başlatılıyor? (`scripts/setup-wizard.sh`)
+## 🧙‍♂️ İnteraktif Kurulum Sihirbazı (`scripts/setup-wizard.sh`)
 
-`setup-wizard.sh` betiği, Hermes Agent'ın ilk kurulumunda veya yerel başlatma esnasında (`./hermes-start wizard` veya `.env` dosyası bulunmadığında) kullanıcıyı adım adım yönlendirerek gerekli tüm sistem yapılandırmalarını güvenli ve hatasız bir şekilde oluşturmak için başlatılır.
+`setup-wizard.sh` betiği, Hermes Agent'ın ilk kurulumunda veya yerel başlatma esnasında (`./hermes-start wizard` veya `.env` dosyası bulunmadığında) kullanıcıyı adım adım yönlendirerek gerekli tüm sistem yapılandırmalarını güvenli ve hatasız bir şekilde oluşturur.
 
-### ❓ Sihirbazın Başlatılma Amaçları:
-1. **Çevre Değişkenleri ve `.env` Dosyası Oluşturma:** Uygulamanın çalışması için gerekli API anahtarlarını, şifreleri ve port tanımlarını elle hata yapmadan interaktif bir terminal arayüzü üzerinden toplar ve projeye uygun `.env` dosyası üretir.
-2. **Hedef Dağıtım Ortamı Seçimi:** Hugging Face Spaces ve Yerel Docker ortamları arasındaki farklı konfigürasyon gereksinimlerini ayırt eder (HF Spaces için girilmesi gereken Secret/Variable listesini hazırlar).
-3. **Dashboard Güvenliği (Basic Auth):** Dış dünyaya açık arayüzlerde zorunlu olan yönetici kullanıcı adı ve şifresini belirler (boş bırakılırsa güçlü rastgele şifre üretir).
-4. **Yapay Zeka (AI) Sağlayıcı Entegrasyonları:** OpenRouter, OpenAI, Anthropic, DeepSeek, Groq vb. API anahtarlarını yapılandırır.
-5. **GitHub Yedekleme & Kurtarma (Disaster Recovery):** Konteyner sıfırlansa bile sohbet geçmişi ve ayarların kaybolmaması için GitHub tabanlı otomatik yedekleme deposunu bağlar.
-6. **PDF Summarizer Dizin Yapılandırması:** Döküman tarama ve özetleme işlemleri için Yerel Klasör (`Bilgi_Tabani/...`) veya WebDAV sunucusu (Nextcloud vb.) ayarlarını ilklendirir.
-7. **Otomatik Başlatma:** Yapılandırma tamamlandıktan sonra isteğe bağlı olarak Docker Compose (`docker compose up -d --build`) ile tüm servisleri (Hermes Agent ve Ofelia zamanlayıcısı) anında başlatır.
+### ❓ Sihirbazın İşlevleri:
+1. **Çevre Değişkenleri ve `.env` Dosyası Oluşturma:** Uygulamanın çalışması için gerekli API anahtarlarını, şifreleri ve port tanımlarını toplayarak `.env` dosyası üretir.
+2. **Dashboard Güvenliği (Basic Auth):** Dış dünyaya veya ağa açık arayüzlerde zorunlu olan yönetici kullanıcı adı ve şifresini belirler.
+3. **Yapay Zeka (AI) Sağlayıcı Entegrasyonları:** OpenRouter, OpenAI, Anthropic, DeepSeek, Groq vb. API anahtarlarını yapılandırır.
+4. **GitHub Yedekleme & Kurtarma:** Sohbet geçmişi ve ayarların kaybolmaması için GitHub tabanlı otomatik yedekleme deposunu bağlar.
+5. **PDF Summarizer Dizin Yapılandırması:** Yerel Klasör (`Bilgi_Tabani/...`) veya WebDAV sunucusu ayarlarını ilklendirir.
 
 ### Sihirbazı Çalıştırma:
 ```bash
@@ -115,220 +104,34 @@ Uygulama sürümünü güncellerken verilerinizin veya özelleştirilmiş ayarla
 
 ## 📄 `config.yaml` Yapılandırma Dosyası Nasıl Yüklenir ve Dağıtılır?
 
-Hermes Agent çalışma zamanında konfigürasyon dosyasını varsayılan olarak `~/.hermes/config.yaml` (ve `~/.config/hermes/config.yaml`) konumunda arar. Projede `config.yaml` dosyasının sisteme yüklenmesi ve güncel tutulması şu mimari akışla gerçekleşir:
+Hermes Agent çalışma zamanında konfigürasyon dosyasını varsayılan olarak `~/.hermes/config.yaml` (ve `~/.config/hermes/config.yaml`) konumunda arar:
 
-1. **Kaynak Tanımı (`CONFIG_SRC`):**
-   - `Dockerfile` içerisinde `CONFIG_SRC=/home/user/app/config.yaml` çevre değişkeni tanımlanmıştır.
-2. **İmaj Derleme Aşaması (Build Time):**
-   - `Dockerfile` derlenirken kök dizindeki `config.yaml` hem `$HOME/.config/hermes/config.yaml` hem de `$HOME/.hermes/config.yaml` dizinlerine kopyalanır.
-3. **Başlangıç ve Dinamik Güncelleme (Runtime Distribution):**
-   - Konteyner ayağa kalkarken `scripts/start.sh` betiği çalışır.
-   - Betik önce `auth-config.py` ile çevre değişkenlerini (şifreler, auth eklentisi durumu, API anahtarları, Buzz platform ayarları) `config.yaml` üzerine işler.
-   - Ardından `config.yaml` dosyasını sistemdeki aktif konfigürasyon hedeflerine dinamik olarak dağıtır:
-     - `/home/user/.hermes/config.yaml`
-     - `/home/user/.config/hermes/config.yaml`
-   - Eğer GitHub yedekleme sistemi aktif ise ve depoda önceden kaydedilmiş bir `config.yaml` bulunuyorsa, restore işlemi sırasında bu dosya indirilir ve yine aynı hedeflere kopyalanarak uygulamanın özelleştirilmiş ayarları korunur.
+1. **Kaynak Tanımı (`CONFIG_SRC`):** `CONFIG_SRC=/home/user/app/config.yaml`
+2. **İmaj Derleme Aşaması (Build Time):** `config.yaml` ilgili dizinlere kopyalanır.
+3. **Başlangıç ve Dinamik Güncelleme:** `scripts/start.sh` betiği `auth-config.py` ile çevre değişkenlerini `config.yaml` üzerine işler ve aktif hedeflere dağıtır.
 
 ---
 
-## 🔒 Güvenlik ve Dinamik Kimlik Doğrulama (Authentication)
+## 🔑 Çevre Değişkenleri (Environment Variables)
 
-Dış dünyaya açık (kamusal IP'ye veya `0.0.0.0` adresine bağlanan) tüm Hermes Dashboard arayüzlerinde kimlik doğrulama yapılması zorunludur. Geçerli bir kimlik doğrulama sağlayıcısı yapılandırılmadığı takdirde dashboard güvenlik amacıyla başlatılmayacaktır.
-
-> ⚠️ **Önemli Bilgi:** `--insecure` parametresi artık pasiftir (deprecated / no-op) ve dışarıya açık bağlantılarda kimlik doğrulamayı devre dışı bırakmaz. Kamusal bağlantılarda her zaman geçerli bir kimlik doğrulama sağlayıcısı bulunmalıdır. Bu nedenle, gereksiz yük oluşturmaması ve uyarı vermemesi amacıyla `scripts/start.sh` dosyasından tamamen kaldırılmıştır.
-
----
-
-## 🌐 Gelişmiş Ağ ve DNS-over-HTTPS (DoH) Çözümü
-
-Hugging Face Spaces gibi kısıtlı konteyner ortamlarında, Telegram, WhatsApp, Slack, Discord ve bazı yapay zeka (AI) sağlayıcılarının (OpenAI, Anthropic vb.) alan adları varsayılan DNS sunucuları tarafından engellenebilir veya çözümlenemeyebilir.
-
-Bu sorunu aşmak için projeye **DNS-over-HTTPS (DoH)** tabanlı dinamik bir bypass mekanizması entegre edilmiştir.
-
----
-
-## 🧠 Feynman Öğrenme ve Analiz Becerileri (`feynman-analyzer` & `feynman-tutor`)
-
-Hermes Agent, döküman ve konuları Nobel ödüllü fizikçi Richard Feynman'ın öğrenme metodolojisiyle ele alan iki güçlü beceriye (`skill`) sahiptir (Her iki beceri de Hermes standartlarına uygun olarak `skills/feynman-analyzer/SKILL.md` ve `skills/feynman-tutor/SKILL.md` altında tanımlanmıştır):
-
-1. **`feynman-analyzer` (Asenkron Döküman Analizi):** Dökümanı teknik jargondan arındırarak 12 yaşındaki birinin anlayabileceği seviyeye (ELI5) indirger, günlük hayattan somut benzetmeler (analojiler) kurar, zihinsel kör noktaları ve kavramsal tuzakları tespit eder.
-2. **`feynman-tutor` (İnteraktif Sokratik Eğitmen):** Öğrenilen konunun pekiştirilmesi için Sokratik diyalog başlatır. Kullanıcının konuyu teknik terim kullanmadan anlatmasını ister, anlatımdaki eksik veya hataları tespit eder ve yönlendirici sorular sorar.
-
----
-
-### 🔄 Kullanım Senaryoları
-
-#### 📩 Senaryo A: Asenkron Döküman İşleme (Otomatik)
-* **Adım 1 (Dosya Ekleme):** Bilgisayarınızdan veya telefonunuzdan bir PDF dosyasını Nextcloud üzerindeki `Bilgi_Tabani/02_Okuma_Listesi/` klasörüne eklersiniz.
-* **Adım 2 (Otomatik Tarama & Analiz):** Hermes Agent, zamanlanmış görevle bu klasörü tarar ve `feynman-analyzer` skill'ini çalıştırır.
-* **Adım 3 (Düzenleme & Temizlik):** Hermes, orijinal PDF ile birlikte ürettiği `Konu_Feynman_Karti.md` dosyasını `Bilgi_Tabani/03_Akilli_Raflar/#Konu/` klasörüne taşır ve okuma listesini temizler.
-* **Adım 4 (Hızlı Okuma):** Gün içinde bu `.md` dosyasını açıp 2 dakikada konunun en yalın özetini, benzetmelerini ve kavramsal tuzaklarını okursunuz.
-
-#### 💬 Senaryo B: Anlık İnteraktif Öğrenme (Sohbet / CLI)
-* **Tetikleme:** Öğrenmeyi derinleştirmek istediğinizde Hermes CLI (`hermes --tui` / web terminali) veya mesajlaşma arayüzünden (Dashboard / Buzz kanalı) ajana talimat verirsiniz:
-  > **Siz:** *"Hermes, dün özetlediğin 'Konteyner Mimarisi' konusu için feynman-tutor modunu başlat."*
-* **Sokratik Diyalog:** Hermes `feynman-tutor` moduna geçer, konuyu teknik kelimeler kullanmadan sıradan bir arkadaşınıza anlatır gibi açıklamanızı ister ve verdiğiniz yanıtlar üzerinden zihinsel boşluklarınızı kapatır.
-
----
-
-## 📁 `pdf-summarizer` Skill Dizin Yapılandırması (Local vs. WebDAV)
-
-`pdf-summarizer` skill'i dökümanları **Yerel Klasör (Local Directory)** veya **WebDAV Sunucusu** üzerinden okuyup düzenleyebilir. Hangi dizinin takip edileceği çevre değişkenleri üzerinden belirlenir. Uygulama başlatıldığında öntanımlı okuma listesi ve raf klasör yapıları otomatik ilklendirilir.
-
-### Çevre Değişkenleri:
-
-| Değişken Adı | Türü | Varsayılan | Açıklama |
-| :--- | :--- | :--- | :--- |
-| `PDF_SUMMARIZER_TARGET_TYPE` | Değişken | `local` | Takip türü: `local` veya `webdav` |
-| `PDF_SUMMARIZER_LOCAL_READING_LIST` | Değişken | `$HOME/Bilgi_Tabani/02_Okuma_Listesi` | Yerel okuma listesi dizini |
-| `PDF_SUMMARIZER_LOCAL_SHELVES` | Değişken | `$HOME/Bilgi_Tabani/03_Akilli_Raflar` | Yerel akıllı raflar dizini |
-| `PDF_SUMMARIZER_WEBDAV_URL` | Değişken | *(Boş)* | WebDAV sunucu adresi (Örn: `https://dav.example.com/remote.php/dav/files/user`) |
-| `PDF_SUMMARIZER_WEBDAV_USERNAME` | Değişken | *(Boş)* | WebDAV kullanıcı adı |
-| `PDF_SUMMARIZER_WEBDAV_PASSWORD` | Sır (Secret) | *(Boş)* | WebDAV şifresi veya uygulama anahtarı |
-| `PDF_SUMMARIZER_WEBDAV_READING_LIST` | Değişken | `/Bilgi_Tabani/02_Okuma_Listesi` | WebDAV okuma listesi klasör yolu |
-| `PDF_SUMMARIZER_WEBDAV_SHELVES` | Değişken | `/Bilgi_Tabani/03_Akilli_Raflar` | WebDAV akıllı raflar klasör yolu |
-
-### Depolama Yardımcısı (`storage_helper.py`):
-Skill içerisinde bağımlılık kontrolü, dosya listeleme, indirme, yükleme, taşıma ve varsayılan klasör yapısını ilklendirme işlemleri `skills/pdf-summarizer/storage_helper.py` betiği ile yönetilir:
-
-```bash
-# Gerekli tüm Python paketlerini (httpx, pypdf, pdfplumber, python-docx) kurma ve klasör yapısını ilklendirme (Başlangıç Kurulumu):
-python3 skills/pdf-summarizer/storage_helper.py setup
-
-# Gerekli bağımlılıkların varlığını kontrol etme:
-python3 skills/pdf-summarizer/storage_helper.py check-deps
-
-# Öntanımlı klasör yapısını manuel oluşturma/doğrulama:
-python3 skills/pdf-summarizer/storage_helper.py init-dirs
-
-# Depolama durumunu ve bağlantıyı test etme:
-python3 skills/pdf-summarizer/storage_helper.py status
-
-# Okuma listesini listeleme:
-python3 skills/pdf-summarizer/storage_helper.py list
-```
-
----
-
-## 💾 GitHub ile Otomatik Yedekleme ve Geri Yükleme (Backup & Restore)
-
-Uygulamanın oturum geçmişi, veritabanı ve ayarları (`.hermes` dizini ve `config.yaml` dosyası) Hugging Face Spaces gibi geçici (ephemeral) ortamlarda konteyner sıfırlandığında kaybolabilir. Bunu önlemek için **GitHub tabanlı dinamik yedekleme ve geri yükleme** mekanizması (`scripts/github-backup.sh`) eklenmiştir.
-
----
-
-## 🛠️ Sorun Giderme ve Log Dosyaları (Troubleshooting)
-
-Hugging Face Spaces üzerinde başlangıç gecikmelerini, yedekleme hatalarını veya bağlantı sorunlarını gidermek için sistemdeki kritik geçici log dosyalarını inceleyebilirsiniz:
-
-* **`/tmp/git_clone.log`**: Başlangıçta yedek deposunun GitHub'dan klonlanması sırasında oluşan tüm hata ve çıktıları içerir.
-* **`/tmp/git_push.log`**: Yedeklerin periyodik veya graceful shutdown sırasında GitHub deposuna push edilmesi esnasındaki tüm detayları barındırır.
-* **`/tmp/dns-resolved.json`**: DNS-over-HTTPS (DoH) ile çözümlenmiş güncel alan adı / IP adres eşleştirmelerini gösterir.
-* **`backup.log` (veya `$HOME/app/backup.log`)**: Tüm yedekleme ve geri yükleme geçmişini etiketli ve zaman damgalı (`INFO`, `SUCCESS`, `WARNING`, `ERROR`) olarak listeler.
-
----
-
-## 🔑 Çevre Değişkenleri (Environment Variables) ve Sırlar (Secrets)
-
-Uygulamanın çalışması için aşağıdaki değişkenler kullanılmaktadır. Bunları Hugging Face Spaces ayarlarında **Variables** veya **Secrets** olarak tanımlayabilirsiniz.
+.env dosyasında aşağıdaki değişkenler tanımlanabilir:
 
 ### 1. Kimlik Doğrulama Değişkenleri
+- `HERMES_DASHBOARD_BASIC_AUTH_USERNAME` (Varsayılan: `admin`)
+- `HERMES_DASHBOARD_BASIC_AUTH_PASSWORD`
+- `HERMES_DASHBOARD_BASIC_AUTH_PASSWORD_HASH`
 
-| Değişken Adı | Türü | Varsayılan | Açıklama |
-| :--- | :--- | :--- | :--- |
-| `HERMES_DASHBOARD_BASIC_AUTH_USERNAME` | Değişken/Sır | `admin` | Dashboard arayüzüne giriş kullanıcı adı. |
-| `HERMES_DASHBOARD_BASIC_AUTH_PASSWORD` | Sır (Secret) | *(Otomatik Üretilir)* | Giriş şifresi. Belirtilmezse, başlangıçta rastgele üretilir ve loglara basılır. Bu değer `config.yaml` içindeki eski şifreleri ezer. |
-| `HERMES_DASHBOARD_BASIC_AUTH_PASSWORD_HASH` | Sır (Secret) | *(Boş)* | Şifrenin düz metin olarak girilmesini istemiyorsanız, önceden üretilmiş `scrypt` hash değerini buraya tanımlayabilirsiniz. |
+### 2. Yapay Zeka (AI) API Anahtarları
+- `OPENROUTER_API_KEY`
+- `OPENAI_API_KEY`
+- `ANTHROPIC_API_KEY`
+- `DEEPSEEK_API_KEY`
+- `GROQ_API_KEY`
 
-### 2. Buzz Kanalı ve Bildirim Değişkenleri
-
-| Değişken Adı | Türü | Varsayılan | Açıklama |
-| :--- | :--- | :--- | :--- |
-| `BUZZ_ENABLE` | Değişken | `false` | Buzz entegrasyonunu açıkça aktifleştirmek için `true` yapın. |
-| `BUZZ_RELAY_URL` | Değişken/Sır | `wss://relay.buzz.community` | Bağlanılacak Buzz Relay adresi (Örn: `ws://localhost:8080` veya `wss://relay.buzz.community`). |
-| `BUZZ_PRIVATE_KEY` | Sır (Secret) | *(Boş)* | Dedicated agent private key (`nsec1...`). |
-| `BUZZ_HOME_CHANNEL` | Değişken | *(Boş)* | PDF özet ve otomatik bildirimlerin gönderileceği ana Buzz kanal ID'si (UUID). |
-| `BUZZ_CHANNELS` | Değişken | *(Boş)* | Dinlenecek Buzz kanallarının virgülle veya JSON dizisi olarak listesi. |
-| `BUZZ_CLI_PATH` | Değişken | `/usr/local/bin/buzz` | Buzz CLI ikili dosyasının yolu. |
-| `BUZZ_ALLOWED_USERS` | Değişken | *(Boş)* | Komut çalıştırmasına izin verilen kullanıcı adresi (`npub1...` veya hex). |
-| `BUZZ_ALLOW_ALL_USERS` | Değişken | `false` | Tüm kullanıcıların komut tetiklemesine izin vermek için `true` yapın. |
-
-### 3. Yapay Zeka (AI) API Anahtarları
-Kullanmak istediğiniz modellere göre ilgili sağlayıcıların API anahtarlarını **Secret** olarak ekleyin:
-- **OpenAI:** `OPENAI_API_KEY`
-- **Anthropic:** `ANTHROPIC_API_KEY`
-- **OpenRouter:** `OPENROUTER_API_KEY`
-- **DeepSeek:** `DEEPSEEK_API_KEY`
-- **Groq:** `GROQ_API_KEY`
-
-### 4. GitHub Yedekleme Değişkenleri
-
-| Değişken Adı | Türü | Varsayılan | Açıklama |
-| :--- | :--- | :--- | :--- |
-| `GITHUB_BACKUP_REPO` | Değişken/Sır | *(Boş)* | Yedeklerin saklanacağı GitHub deposunun adresi. |
-| `GITHUB_TOKEN` | Sır (Secret) | *(Boş)* | GitHub deposuna yazma yetkisi olan kişisel erişim token'ı (PAT). |
-
----
-
-## 🐝 `buzz-skills` Entegrasyonu ve Otomatik Platform Yapılandırması
-
-`scripts/auth-config.py` betiği, yukarıdaki Buzz çevre değişkenlerini tespit ettiğinde `config.yaml` dosyasında Buzz platformunu otomatik olarak **etkinleştirir (`enabled: true`)** ve tüm alanları günceller:
-
-```yaml
-gateway:
-  platforms:
-    buzz:
-      enabled: true
-      extra:
-        relay_url: "ws://localhost:8080"         # BUZZ_RELAY_URL
-        cli_path: "/usr/local/bin/buzz"           # BUZZ_CLI_PATH
-        channels: ["<CHANNEL_UUID>"]              # BUZZ_CHANNELS
-        home_channel: "<HOME_CHANNEL_UUID>"       # BUZZ_HOME_CHANNEL
-        require_mention: true                     # BUZZ_REQUIRE_MENTION
-        allow_all_users: false                    # BUZZ_ALLOW_ALL_USERS
-        allowed_users: ["<OWNER_NPUB>"]           # BUZZ_ALLOWED_USERS
-```
-
-Bu sayede, `BUZZ_RELAY_URL` veya `BUZZ_HOME_CHANNEL` tanımlandığında `pdf-summarizer` skill'inin 5. adımındaki Buzz kanalı bildirimi **kullanıcının `config.yaml` dosyasını elle düzenlemesine gerek kalmadan tam otomatik olarak çalışır**.
-
----
-
-## 🛠️ Beceri (Skills) Yönetimi ve Volume Bağlantıları
-
-Hermes Agent'ın becerileri (skills) algılaması ve harici beceri depolarını sorunsuz çalıştırabilmesi için volume ve konfigürasyon entegrasyonu yapılmıştır.
-
-### Skill Klasörlerinin Volume Olarak Tanımlanması (`docker-compose.yml`)
-Yerel geliştirme ve konteyner ortamında yeni becerilerin anında algılanması ve kod değişikliklerinin konteyner içine yansıması için `docker-compose.yml` içerisinde klasörler volume olarak bağlanmıştır:
-
-```yaml
-version: '3'
-
-services:
-  hermes:
-    build: .
-    container_name: hermes-agent
-    env_file:
-      - .env
-    ports:
-      - "7860:7860"
-    volumes:
-      - hermes-data:/home/user/.hermes
-      - ./skills:/home/user/app/skills
-      - ./buzz-skills:/home/user/app/buzz-skills
-    restart: always
-
-  ofelia:
-    image: mcuadros/ofelia:v0.3.22
-    container_name: ofelia-scheduler
-    depends_on:
-      - hermes
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./ofelia.conf:/etc/ofelia/config.ini:ro
-    restart: always
-
-volumes:
-  hermes-data:
-```
+### 3. GitHub Yedekleme Değişkenleri
+- `GITHUB_BACKUP_REPO`
+- `GITHUB_TOKEN`
+- `BACKUP_INTERVAL`
 
 ---
 
@@ -336,34 +139,7 @@ volumes:
 
 İşlemleri zamanlanmış görev (Cron) olarak çalıştırmak amacıyla `mcuadros/ofelia` Docker konteyneri entegre edilmiştir.
 
-### 📅 Zamanlama Konfigürasyonu (`ofelia.conf`)
-Ofelia, `/var/run/docker.sock` üzerinden `hermes-agent` konteynerinde doğrudan komut çalıştırır:
-
-```ini
-[global]
-
-[job-exec "pdf-summarizer-morning"]
-schedule = 0 30 8 * * *
-container = hermes-agent
-command = /opt/hermes/.venv/bin/hermes run --skill pdf-summarizer "PDF Summarizer & Smart Shelf Organizer skill'ini çalıştır"
-
-[job-exec "pdf-summarizer-evening"]
-schedule = 0 0 23 * * *
-container = hermes-agent
-command = /opt/hermes/.venv/bin/hermes run --skill pdf-summarizer "PDF Summarizer & Smart Shelf Organizer skill'ini çalıştır"
-```
-
-### 📄 PDF Summarizer & Smart Shelf Organizer İş Akışı:
-1. **Dosya Tarama:** `/Bilgi_Tabani/02_Okuma_Listesi/` (veya yapılandırılmış WebDAV/Yerel dizin) altındaki yeni PDF/dökümanları tespit eder.
-2. **Derin Analiz & Türkçe Özet:** Dökümanı analiz edip standart şablon ile akademik Türkçe özet `.md` raporu oluşturur.
-3. **Akıllı Raf Düzenleme:** Dosyayı ve özetini `/Bilgi_Tabani/03_Akilli_Raflar/#Kategori_Adı/` dizinine (Local veya WebDAV) taşır.
-4. **Buzz Kanalı Bildirimi:** Özet tamamlandığında hazırlanan özetin durumunu **Buzz kanalı** (`hermes-in-buzz`) üzerinden kullanıcıya bildirir.
-
----
-
-## Yerel Ortamda Docker ile Çalıştırma
-
-### Docker Compose veya `hermes-start` Betiği ile Çalıştırma (Ofelia Zamanlayıcı Dahil - Önerilen):
+### Yerel Ortamda Docker ile Çalıştırma:
 ```bash
 # hermes-start betiği ile tek komutla çalıştırma:
 ./hermes-start
