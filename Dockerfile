@@ -1,8 +1,10 @@
 ARG HERMES_VERSION=v2026.9.14
+ARG BUZZ_VERSION=v0.5.2
 
 # Stage 1: Buzz CLI derleme aşaması
 FROM rust:bookworm AS buzz-builder
-RUN cargo install --git https://github.com/block/buzz buzz-cli
+ARG BUZZ_VERSION
+RUN cargo install --git https://github.com/block/buzz --tag ${BUZZ_VERSION} buzz-cli
 
 # Stage 2: Ofelia ikili dosyasını resmi imajdan alıyoruz
 FROM mcuadros/ofelia:0.3.22 AS ofelia-builder
