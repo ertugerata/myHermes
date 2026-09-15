@@ -45,7 +45,7 @@ Konteyner başlatıldığında supervisord, aşağıdaki süreçleri hiyerarşik
 2. **`auth-config` (Öncelik: 30):** Çevre değişkenlerinden gelen dashboard giriş bilgilerini, Buzz platform ayarlarını ve kimlik doğrulama eklentisini güvenle hazırlar.
 3. **`hermes-dashboard` (Öncelik: 40):** 7860 portunda çalışacak olan ana kontrol panelini ayağa kaldırır.
 4. **`ofelia` (Öncelik: 50):** Konteyner içinde zamanlanmış görevleri (`job-local`) yöneten Ofelia cron zamanlayıcısını çalıştırır.
-5. **`backup-loop` (Öncelik: 60):** Her 2 saatte bir değişen verileri algılayarak GitHub yedek deposuna push eder.
+5. **`backup-loop` (Öncelik: 60):** `BACKUP_INTERVAL` ile belirlenen aralıklarla (varsayılan: 7200 saniye / 2 saat) değişen verileri algılayarak GitHub yedek deposuna push eder.
 
 ---
 
@@ -77,7 +77,7 @@ Kurulum sihirbazı (`scripts/setup-wizard.sh`) veya `hermes-start` betiği üzer
 ### 2. GitHub Otomatik Yedekleme ve Geri Yükleme (Automatic Backup & Restore)
 Konteyner her başlatıldığında `scripts/start.sh` önceden yapılandırılmış GitHub yedek deponuzdan (`GITHUB_BACKUP_REPO` ve `GITHUB_TOKEN`) verileri indirir.
 - `.hermes` veritabanı, oturum geçmişleri ve `config.yaml` dosyası otomatik geri yüklenir.
-- Sistem her 2 saatte bir ve konteyner durdurulurken (`SIGTERM`) güncul durumu GitHub deponuza geri push eder.
+- Sistem belirlenen yedekleme aralığında (`BACKUP_INTERVAL`, varsayılan 2 saat) ve konteyner durdurulurken (`SIGTERM`) güncel durumu GitHub deponuza geri push eder.
 
 ---
 
