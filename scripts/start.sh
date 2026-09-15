@@ -32,7 +32,7 @@ mkdir -p "$HOME/.hermes" "$HOME/.config/hermes"
 # Yazma izinlerini kontrol et
 if [ ! -w "$HOME/.hermes" ]; then
     echo "⚠️  UYARI: $HOME/.hermes dizini yazılabilir değil!"
-    echo "    Docker üzerinden bind-mount (klasör eşleme) yaptıysanız lütfen yerel makinenizde şu izinleri güncelleyin:"
+    echo "    Docker üzerinden bind-mount (klasör eşleme) yaptıysanız lütfen yerel makinenizde veya sunucunuzda şu izinleri güncelleyin:"
     echo "    chmod -R 777 ~/.hermes"
     echo "    veya"
     echo "    chown -R 1000:1000 ~/.hermes"
