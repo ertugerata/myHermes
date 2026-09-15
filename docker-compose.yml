@@ -4,6 +4,9 @@ services:
     container_name: hermes-agent
     env_file:
       - .env
+    environment:
+      - PDF_SUMMARIZER_LOCAL_READING_LIST=/home/user/app/Bilgi_Tabani/02_Okuma_Listesi
+      - PDF_SUMMARIZER_LOCAL_SHELVES=/home/user/app/Bilgi_Tabani/03_Akilli_Raflar
     ports:
       - "${PORT:-7860}:${PORT:-7860}"
     volumes:

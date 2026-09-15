@@ -52,6 +52,20 @@ class TestStorageHelper(unittest.TestCase):
         expected = os.path.join(app_dir, 'Bilgi_Tabani/02_Okuma_Listesi')
         self.assertEqual(res, expected)
 
+    def test_resolve_local_path_custom_fallback(self):
+        with tempfile.TemporaryDirectory() as fallback_tmp:
+            # Simulate an uncreatable host path with PermissionError when mkdir is called
+            uncreatable_path = '/proc/sys/fs/nonexistent_dir_12345'
+            res = storage_helper.resolve_local_path(uncreatable_path, default_fallback=fallback_tmp)
+            self.assertEqual(res, fallback_tmp)
+
+    def test_resolve_local_path_creatable(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            target_sub = os.path.join(tmpdir, 'custom_reading_list')
+            res = storage_helper.resolve_local_path(target_sub)
+            self.assertEqual(res, target_sub)
+            self.assertTrue(os.path.exists(target_sub))
+
     def test_safe_filename_valid(self):
         self.assertEqual(storage_helper.safe_filename('Rapor.pdf'), 'Rapor.pdf')
         self.assertEqual(storage_helper.safe_filename('My Report 2026.pdf'), 'My Report 2026.pdf')
