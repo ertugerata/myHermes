@@ -16,8 +16,6 @@ export HERMES_HOME="$HOME/.hermes"
 export HERMES_WRITE_SAFE_ROOT="$HOME/.hermes"
 export HERMES_LAZY_INSTALL_TARGET="$HOME/.hermes/lazy-packages"
 export CONFIG_SRC="$HOME/app/config.yaml"
-export NODE_OPTIONS="${NODE_OPTIONS:+$NODE_OPTIONS }--require $HOME/app/scripts/dns-fix.cjs"
-export PYTHONPATH="$HOME/app/scripts${PYTHONPATH:+:$PYTHONPATH}"
 
 # Determine Python binary path dynamically
 if [ -f "/opt/hermes/.venv/bin/python" ]; then
@@ -34,7 +32,7 @@ mkdir -p "$HOME/.hermes" "$HOME/.config/hermes"
 # Yazma izinlerini kontrol et
 if [ ! -w "$HOME/.hermes" ]; then
     echo "⚠️  UYARI: $HOME/.hermes dizini yazılabilir değil!"
-    echo "    Docker üzerinden bind-mount (klasör eşleme) yaptıysanız lütfen yerel makinenizde şu izinleri güncelleyin:"
+    echo "    Docker üzerinden bind-mount (klasör eşleme) yaptıysanız lütfen yerel makinenizde veya sunucunuzda şu izinleri güncelleyin:"
     echo "    chmod -R 777 ~/.hermes"
     echo "    veya"
     echo "    chown -R 1000:1000 ~/.hermes"
@@ -63,7 +61,7 @@ if os.path.exists(env_path):
 
 keys_to_sync = [
     'OPENROUTER_API_KEY', 'OPENAI_API_KEY', 'ANTHROPIC_API_KEY',
-    'DEEPSEEK_API_KEY', 'GROQ_API_KEY', 'HF_TOKEN', 'GITHUB_TOKEN',
+    'DEEPSEEK_API_KEY', 'GROQ_API_KEY', 'GITHUB_TOKEN',
     'GITHUB_BACKUP_REPO', 'BACKUP_INTERVAL',
     'HERMES_DASHBOARD_BASIC_AUTH_USERNAME', 'HERMES_DASHBOARD_BASIC_AUTH_PASSWORD',
     'HERMES_DASHBOARD_BASIC_AUTH_PASSWORD_HASH', 'PORT',

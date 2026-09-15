@@ -30,27 +30,10 @@ echo -e "manuel olarak seçmenize ve bir ${CYAN}.env${NC} dosyası oluşturmanı
 echo
 
 # -----------------------------------------------------------------------------
-# STEP 1: Hedef Ortam Seçimi
+# STEP 1: Dashboard Kimlik Doğrulama Bilgileri
 # -----------------------------------------------------------------------------
-echo -e "${BLUE}${BOLD}[Adım 1/6] Hedef Dağıtım Ortamı Seçimi${NC}"
-echo "Hermes Agent'ı nerede çalıştırmayı planlıyorsunuz?"
-echo -e "  ${GREEN}1)${NC} Hugging Face Spaces"
-echo -e "  ${GREEN}2)${NC} Yerel Docker Ortamı (Local Docker)"
-read -rp "Seçiminiz (1-2) [Varsayılan: 2]: " target_env
-target_env=${target_env:-2}
-
-if [ "$target_env" = "1" ]; then
-    TARGET_NAME="Hugging Face Spaces"
-else
-    TARGET_NAME="Yerel Docker"
-fi
-echo -e "👉 Seçilen Hedef Ortam: ${CYAN}${BOLD}$TARGET_NAME${NC}\n"
-
-# -----------------------------------------------------------------------------
-# STEP 2: Dashboard Kimlik Doğrulama Bilgileri
-# -----------------------------------------------------------------------------
-echo -e "${BLUE}${BOLD}[Adım 2/6] Dashboard Giriş Bilgileri (Basic Auth)${NC}"
-echo "Dış dünyaya açık dashboard arayüzüne giriş için kimlik bilgileri gereklidir."
+echo -e "${BLUE}${BOLD}[Adım 1/5] Dashboard Giriş Bilgileri (Basic Auth)${NC}"
+echo "Dış dünyaya veya ağa açık dashboard arayüzüne giriş için kimlik bilgileri gereklidir."
 
 read -rp "Yönetici Kullanıcı Adı [Varsayılan: admin]: " db_username
 db_username=${db_username:-admin}
@@ -67,9 +50,9 @@ fi
 echo
 
 # -----------------------------------------------------------------------------
-# STEP 3: Yapay Zeka (AI) API Anahtarları
+# STEP 2: Yapay Zeka (AI) API Anahtarları
 # -----------------------------------------------------------------------------
-echo -e "${BLUE}${BOLD}[Adım 3/6] Yapay Zeka (AI) API Anahtarları${NC}"
+echo -e "${BLUE}${BOLD}[Adım 2/5] Yapay Zeka (AI) API Anahtarları${NC}"
 echo "Kullanmak istediğiniz servislerin API anahtarlarını giriniz. Boş bırakılanlar tanımlanmayacaktır."
 echo
 
@@ -81,9 +64,9 @@ read -rp "Groq API Key (Hızlı açık kaynaklı modeller için): " key_groq
 echo
 
 # -----------------------------------------------------------------------------
-# STEP 4: GitHub Otomatik Yedekleme Ayarları
+# STEP 3: GitHub Otomatik Yedekleme Ayarları
 # -----------------------------------------------------------------------------
-echo -e "${BLUE}${BOLD}[Adım 4/6] GitHub Otomatik Yedekleme ve Geri Yükleme${NC}"
+echo -e "${BLUE}${BOLD}[Adım 3/5] GitHub Otomatik Yedekleme ve Geri Yükleme${NC}"
 echo "Sohbet oturumlarınızın, verilerinizin ve ayarlarınızın kaybolmaması için"
 echo "GitHub tabanlı bir yedekleme sistemi kurmanızı şiddetle tavsiye ederiz."
 read -rp "GitHub yedekleme sistemini aktifleştirmek ister misiniz? (e/h) [Varsayılan: h]: " enable_backup
@@ -109,9 +92,9 @@ fi
 echo
 
 # -----------------------------------------------------------------------------
-# STEP 5: PDF Summarizer & Smart Shelf Organizer Dizin Yapılandırması
+# STEP 4: PDF Summarizer & Smart Shelf Organizer Dizin Yapılandırması
 # -----------------------------------------------------------------------------
-echo -e "${BLUE}${BOLD}[Adım 5/6] PDF Summarizer Dizin Yapılandırması (Local / WebDAV)${NC}"
+echo -e "${BLUE}${BOLD}[Adım 4/5] PDF Summarizer Dizin Yapılandırması (Local / WebDAV)${NC}"
 echo "PDF Summarizer skill'inin dökümanları tarayacağı ve düzenleyeceği dizin türünü seçin:"
 echo -e "  ${GREEN}1)${NC} Yerel Klasör (Local Directory)"
 echo -e "  ${GREEN}2)${NC} WebDAV Sunucusu"
@@ -176,9 +159,9 @@ fi
 echo
 
 # -----------------------------------------------------------------------------
-# STEP 6: Genel Sistem Ayarları
+# STEP 5: Genel Sistem Ayarları
 # -----------------------------------------------------------------------------
-echo -e "${BLUE}${BOLD}[Adım 6/6] Genel Sistem Ayarları${NC}"
+echo -e "${BLUE}${BOLD}[Adım 5/5] Genel Sistem Ayarları${NC}"
 read -rp "Dinlenecek Port Numarası [Varsayılan: 7860]: " app_port
 app_port=${app_port:-7860}
 echo -e "👉 Uygulama Portu: ${CYAN}$app_port${NC}"
@@ -243,78 +226,41 @@ echo -e "${GREEN}${BOLD}✔ Konfigürasyon başarıyla .env dosyasına kaydedild
 echo
 
 # -----------------------------------------------------------------------------
-# Dağıtım ve Çalıştırma Kılavuzu Gösterimi
+# Çalıştırma Kılavuzu Gösterimi
 # -----------------------------------------------------------------------------
-if [ "$target_env" = "1" ]; then
-    echo -e "${PURPLE}${BOLD}========================================================="
-    echo "   HUGGING FACE SPACES - KURULUM REHBERİ"
-    echo -e "=========================================================${NC}"
-    echo -e "Hugging Face Spaces üzerinde güvenli çalıştırmak için lütfen"
-    echo -e "Spaces ayarlarınızda (Settings -> Variables and secrets) şu alanları tanımlayın:"
-    echo
-    echo -e "🔐 ${BOLD}SECRETS (Gizli Sırlar):${NC}"
-    echo -e "  - ${YELLOW}HERMES_DASHBOARD_BASIC_AUTH_PASSWORD${NC} = $db_password"
-    [ -n "$key_openrouter" ] && echo -e "  - ${YELLOW}OPENROUTER_API_KEY${NC} = $key_openrouter"
-    [ -n "$key_openai" ] && echo -e "  - ${YELLOW}OPENAI_API_KEY${NC} = $key_openai"
-    [ -n "$key_anthropic" ] && echo -e "  - ${YELLOW}ANTHROPIC_API_KEY${NC} = $key_anthropic"
-    [ -n "$key_deepseek" ] && echo -e "  - ${YELLOW}DEEPSEEK_API_KEY${NC} = $key_deepseek"
-    [ -n "$key_groq" ] && echo -e "  - ${YELLOW}GROQ_API_KEY${NC} = $key_groq"
-    [ -n "$backup_token" ] && echo -e "  - ${YELLOW}GITHUB_TOKEN${NC} = (Kopyaladığınız GitHub PAT)"
-    [ -n "$pdf_webdav_pass" ] && echo -e "  - ${YELLOW}PDF_SUMMARIZER_WEBDAV_PASSWORD${NC} = (WebDAV Şifreniz)"
-    echo
-    echo -e "⚙️ ${BOLD}VARIABLES (Değişkenler):${NC}"
-    echo -e "  - ${CYAN}HERMES_DASHBOARD_BASIC_AUTH_USERNAME${NC} = $db_username"
-    echo -e "  - ${CYAN}PORT${NC} = $app_port"
-    echo -e "  - ${CYAN}BACKUP_INTERVAL${NC} = $backup_interval"
-    [ -n "$backup_repo" ] && echo -e "  - ${CYAN}GITHUB_BACKUP_REPO${NC} = $backup_repo"
-    echo -e "  - ${CYAN}PDF_SUMMARIZER_TARGET_TYPE${NC} = $PDF_SUMMARIZER_TARGET_TYPE"
-    if [ "$PDF_SUMMARIZER_TARGET_TYPE" = "webdav" ]; then
-        [ -n "$pdf_webdav_url" ] && echo -e "  - ${CYAN}PDF_SUMMARIZER_WEBDAV_URL${NC} = $pdf_webdav_url"
-        [ -n "$pdf_webdav_user" ] && echo -e "  - ${CYAN}PDF_SUMMARIZER_WEBDAV_USERNAME${NC} = $pdf_webdav_user"
-        [ -n "$pdf_webdav_reading_list" ] && echo -e "  - ${CYAN}PDF_SUMMARIZER_WEBDAV_READING_LIST${NC} = $pdf_webdav_reading_list"
-        [ -n "$pdf_webdav_shelves" ] && echo -e "  - ${CYAN}PDF_SUMMARIZER_WEBDAV_SHELVES${NC} = $pdf_webdav_shelves"
+echo -e "\n${GREEN}${BOLD}========================================================="
+echo "   YEREL VEYA SUNUCU (DOCKER) - ÇALIŞTIRMA REHBERİ"
+echo -e "=========================================================${NC}"
+echo -e "Yerel makinenizde veya sunucunuzda çalıştırmak için aşağıdaki komutu kullanabilirsiniz:"
+echo -e "  ${CYAN}docker compose up -d --build${NC} (Ofelia zamanlayıcı ve bağlı hacimler dahil)"
+echo
+echo -e "Arayüze ${BOLD}http://localhost:$app_port${NC} adresinden ulaşabilirsiniz."
+echo -e "Kullanıcı Adı: ${CYAN}$db_username${NC}"
+echo -e "Şifre: ${CYAN}$db_password${NC}"
+echo
+
+read -rp "Docker Compose ile şimdi derleyip çalıştırmak ister misiniz? (e/h) [Varsayılan: e]: " auto_run
+auto_run=${auto_run:-e}
+
+if [[ "$auto_run" =~ ^[EeYy]$ ]]; then
+    echo -e "\n${YELLOW}Git Submodule'ler güncelleniyor...${NC}"
+    git submodule update --init --recursive 2>/dev/null || true
+    echo -e "\n${YELLOW}Docker Compose ile servisler başlatılıyor...${NC}"
+    if command -v docker-compose &>/dev/null; then
+        COMPOSE_CMD="docker-compose"
+    elif docker compose version &>/dev/null; then
+        COMPOSE_CMD="docker compose"
     else
-        [ -n "$pdf_local_reading_list" ] && echo -e "  - ${CYAN}PDF_SUMMARIZER_LOCAL_READING_LIST${NC} = $pdf_local_reading_list"
-        [ -n "$pdf_local_shelves" ] && echo -e "  - ${CYAN}PDF_SUMMARIZER_LOCAL_SHELVES${NC} = $pdf_local_shelves"
+        COMPOSE_CMD=""
     fi
-    echo
-    echo -e "💡 Bu sırları ve değişkenleri girdikten sonra Spaces uygulamanız otomatik"
-    echo -e "yeniden derlenip güvenli bir şekilde başlayacaktır."
-else
-    echo -e "\n${GREEN}${BOLD}========================================================="
-    echo "   YEREL DOCKER - ÇALIŞTIRMA REHBERİ"
-    echo -e "=========================================================${NC}"
-    echo -e "Yerel Docker ortamında çalıştırmak için aşağıdaki komutu kullanabilirsiniz:"
-    echo -e "  ${CYAN}docker compose up -d --build${NC} (Ofelia zamanlayıcı ve bağlı hacimler dahil)"
-    echo
-    echo -e "Arayüze ${BOLD}http://localhost:$app_port${NC} adresinden ulaşabilirsiniz."
-    echo -e "Kullanıcı Adı: ${CYAN}$db_username${NC}"
-    echo -e "Şifre: ${CYAN}$db_password${NC}"
-    echo
 
-    read -rp "Docker Compose ile şimdi derleyip çalıştırmak ister misiniz? (e/h) [Varsayılan: e]: " auto_run
-    auto_run=${auto_run:-e}
-
-    if [[ "$auto_run" =~ ^[EeYy]$ ]]; then
-        echo -e "\n${YELLOW}Git Submodule'ler güncelleniyor...${NC}"
-        git submodule update --init --recursive 2>/dev/null || true
-        echo -e "\n${YELLOW}Docker Compose ile servisler başlatılıyor...${NC}"
-        if command -v docker-compose &>/dev/null; then
-            COMPOSE_CMD="docker-compose"
-        elif docker compose version &>/dev/null; then
-            COMPOSE_CMD="docker compose"
-        else
-            COMPOSE_CMD=""
-        fi
-
-        if [ -n "$COMPOSE_CMD" ]; then
-            $COMPOSE_CMD up -d --build
-            echo -e "${GREEN}${BOLD}✔ Hermes Agent ve Ofelia zamanlayıcısı Docker Compose ile başlatıldı!${NC}"
-            echo -e "Arayüze erişmek için: ${BLUE}${BOLD}http://localhost:$app_port${NC}"
-        else
-            echo -e "${RED}❌ HATA: Sisteminizde 'docker-compose' veya 'docker compose' komutu bulunamadı!${NC}"
-            echo -e "Lütfen Docker Compose'u yükleyin veya manuel olarak '${CYAN}docker compose up -d --build${NC}' komutunu çalıştırın."
-        fi
+    if [ -n "$COMPOSE_CMD" ]; then
+        $COMPOSE_CMD up -d --build
+        echo -e "${GREEN}${BOLD}✔ Hermes Agent ve Ofelia zamanlayıcısı Docker Compose ile başlatıldı!${NC}"
+        echo -e "Arayüze erişmek için: ${BLUE}${BOLD}http://localhost:$app_port${NC}"
+    else
+        echo -e "${RED}❌ HATA: Sisteminizde 'docker-compose' veya 'docker compose' komutu bulunamadı!${NC}"
+        echo -e "Lütfen Docker Compose'u yükleyin veya manuel olarak '${CYAN}docker compose up -d --build${NC}' komutunu çalıştırın."
     fi
 fi
 

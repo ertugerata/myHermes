@@ -239,15 +239,15 @@ dashboard:
 delegation:
   api_key: ''
   api_mode: ''
-  base_url: https://router.huggingface.co/v1
+  base_url: ''
   child_timeout_seconds: 600
   inherit_mcp_toolsets: true
   max_concurrent_children: 3
   max_iterations: 50
   max_spawn_depth: 1
-  model: qwen/Qwen2.5-Coder-32B-Instruct
+  model: ''
   orchestrator_enabled: true
-  provider: huggingface
+  provider: auto
   reasoning_effort: high
   subagent_auto_approve: false
 discord:

@@ -22,7 +22,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Hugging Face Spaces için "user" kullanıcısını tanımlayalım.
+# Uygulama kullanıcısını tanımlayalım
 RUN useradd -m -u 1000 user && \
     echo "user ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
@@ -38,9 +38,7 @@ ENV HOME=/home/user \
     HERMES_HOME=/home/user/.hermes \
     HERMES_WRITE_SAFE_ROOT=/home/user/.hermes \
     HERMES_LAZY_INSTALL_TARGET=/home/user/.hermes/lazy-packages \
-    CONFIG_SRC=/home/user/app/config.yaml \
-    NODE_OPTIONS="--require /home/user/app/scripts/dns-fix.cjs" \
-    PYTHONPATH=/home/user/app/scripts
+    CONFIG_SRC=/home/user/app/config.yaml
 
 # Çalışma dizinini ayarlıyoruz
 WORKDIR $HOME/app
@@ -68,7 +66,7 @@ RUN mkdir -p $HOME/.config/hermes && \
 RUN mkdir -p $HOME/.hermes && \
     cp config.yaml $HOME/.hermes/config.yaml
 
-RUN chmod +x scripts/start.sh scripts/dns-resolve.py scripts/setup-wizard.sh 2>/dev/null || true
+RUN chmod +x scripts/start.sh scripts/setup-wizard.sh 2>/dev/null || true
 
 EXPOSE 7860
 
