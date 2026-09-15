@@ -74,33 +74,28 @@ def expand_vars(path_str: str) -> str:
     return os.path.expandvars(os.path.expanduser(fixed))
 
 
-def fallback_to_app(path_str: str, original_path_str: str = '') -> str:
+def fallback_to_app(path_str: str, original_path_str: str = '', default_fallback: Optional[str] = None) -> str:
     """
     Yazma izni olmaması veya dizin oluşturulamaması durumunda,
     varsayılan ~/app/Bilgi_Tabani yedek dizin yolunu döndürür ve oluşturur.
     """
-    check_str = original_path_str or path_str
-    if check_str.startswith('/Bilgi_Tabani') or check_str.startswith('Bilgi_Tabani'):
-        fallback_p = Path(os.path.expanduser('~/app')) / check_str.lstrip('/')
-        try:
-            fallback_p.mkdir(parents=True, exist_ok=True)
-        except (PermissionError, OSError):
-            pass
-        return str(fallback_p)
+    if default_fallback:
+        fallback_p = Path(os.path.expanduser(default_fallback))
+    else:
+        check_str = original_path_str or path_str
+        if check_str.startswith('/Bilgi_Tabani') or check_str.startswith('Bilgi_Tabani'):
+            fallback_p = Path(os.path.expanduser('~/app')) / check_str.lstrip('/')
+        else:
+            fallback_p = Path(os.path.expanduser('~/app/Bilgi_Tabani'))
 
-    if 'Bilgi_Tabani/02_Okuma_Listesi' in check_str:
-        app_p = Path(os.path.expanduser('~/app/Bilgi_Tabani/02_Okuma_Listesi'))
-        if app_p.exists():
-            return str(app_p)
-    elif 'Bilgi_Tabani/03_Akilli_Raflar' in check_str:
-        app_p = Path(os.path.expanduser('~/app/Bilgi_Tabani/03_Akilli_Raflar'))
-        if app_p.exists():
-            return str(app_p)
-
-    return path_str
+    try:
+        fallback_p.mkdir(parents=True, exist_ok=True)
+    except (PermissionError, OSError):
+        pass
+    return str(fallback_p)
 
 
-def resolve_local_path(path_str: str) -> str:
+def resolve_local_path(path_str: str, default_fallback: Optional[str] = None) -> str:
     """
     Yerel dizin yolunu çözer.
     Eksik eğik çizgi düzeltme, ortam değişkeni genişletme ve
@@ -124,7 +119,11 @@ def resolve_local_path(path_str: str) -> str:
         p.mkdir(parents=True, exist_ok=True)
         return str(p)
     except (PermissionError, OSError):
-        return fallback_to_app(str(p), original_raw)
+        if default_fallback:
+            fb_p = Path(expand_vars(default_fallback))
+            if fb_p.exists():
+                return str(fb_p)
+        return fallback_to_app(str(p), original_raw, default_fallback=default_fallback)
 
 
 def safe_filename(filename: str) -> str:
@@ -176,14 +175,11 @@ def get_config() -> Dict[str, str]:
         'PDF_SUMMARIZER_TARGET_TYPE', os.environ.get('PDF_TARGET_TYPE', 'local')
     ).lower()
 
-    local_reading_list = os.environ.get(
-        'PDF_SUMMARIZER_LOCAL_READING_LIST',
-        os.path.expanduser('~/app/Bilgi_Tabani/02_Okuma_Listesi')
-    )
-    local_shelves = os.environ.get(
-        'PDF_SUMMARIZER_LOCAL_SHELVES',
-        os.path.expanduser('~/app/Bilgi_Tabani/03_Akilli_Raflar')
-    )
+    default_reading_list = os.path.expanduser('~/app/Bilgi_Tabani/02_Okuma_Listesi')
+    default_shelves = os.path.expanduser('~/app/Bilgi_Tabani/03_Akilli_Raflar')
+
+    local_reading_list = os.environ.get('PDF_SUMMARIZER_LOCAL_READING_LIST', default_reading_list)
+    local_shelves = os.environ.get('PDF_SUMMARIZER_LOCAL_SHELVES', default_shelves)
 
     webdav_url = os.environ.get(
         'PDF_SUMMARIZER_WEBDAV_URL', os.environ.get('WEBDAV_URL', '')
@@ -202,8 +198,8 @@ def get_config() -> Dict[str, str]:
     )
 
     if target_type == 'local':
-        local_reading_list = resolve_local_path(local_reading_list)
-        local_shelves = resolve_local_path(local_shelves)
+        local_reading_list = resolve_local_path(local_reading_list, default_fallback=default_reading_list)
+        local_shelves = resolve_local_path(local_shelves, default_fallback=default_shelves)
 
     return {
         'target_type': target_type,
