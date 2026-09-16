@@ -76,6 +76,19 @@ for k, v in os.environ.items():
     if k.startswith('HERMES_') or k.startswith('PDF_SUMMARIZER_') or k.startswith('WEBDAV_') or k.endswith('_API_KEY') or k.endswith('_TOKEN') or k in keys_to_sync:
         env_dict[k] = v
 
+container_default_rl = os.path.expanduser('~/app/Bilgi_Tabani/02_Okuma_Listesi')
+container_default_sh = os.path.expanduser('~/app/Bilgi_Tabani/03_Akilli_Raflar')
+
+rl_val = env_dict.get('PDF_SUMMARIZER_LOCAL_READING_LIST')
+if rl_val and not os.path.exists(rl_val):
+    env_dict['PDF_SUMMARIZER_LOCAL_READING_LIST'] = container_default_rl
+    os.environ['PDF_SUMMARIZER_LOCAL_READING_LIST'] = container_default_rl
+
+sh_val = env_dict.get('PDF_SUMMARIZER_LOCAL_SHELVES')
+if sh_val and not os.path.exists(sh_val):
+    env_dict['PDF_SUMMARIZER_LOCAL_SHELVES'] = container_default_sh
+    os.environ['PDF_SUMMARIZER_LOCAL_SHELVES'] = container_default_sh
+
 with open(env_path, 'w', encoding='utf-8') as f:
     f.write('# Automatically managed by start.sh\n')
     for k, v in sorted(env_dict.items()):
