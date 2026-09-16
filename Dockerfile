@@ -1,10 +1,14 @@
 ARG HERMES_VERSION=v2026.9.14
-ARG BUZZ_VERSION=v0.5.2
+ARG BUZZ_VERSION=0.5.23
 
-# Stage 1: Buzz CLI derleme aşaması
-FROM rust:bookworm AS buzz-builder
+# Stage 1: Buzz CLI ikili dosyasını GitHub Release paketinden indirme aşaması
+FROM debian:bookworm-slim AS buzz-builder
 ARG BUZZ_VERSION
-RUN cargo install --git https://github.com/block/buzz --tag ${BUZZ_VERSION} buzz-cli
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates binutils && rm -rf /var/lib/apt/lists/*
+RUN curl -fsSL "https://github.com/block/buzz/releases/download/desktop-v${BUZZ_VERSION}/Buzz_${BUZZ_VERSION}_amd64.deb" -o /tmp/buzz.deb && \
+    dpkg-deb -x /tmp/buzz.deb /tmp/extracted && \
+    cp /tmp/extracted/usr/bin/buzz /usr/local/bin/buzz && \
+    chmod +x /usr/local/bin/buzz
 
 # Stage 2: Ofelia ikili dosyasını resmi imajdan alıyoruz
 FROM mcuadros/ofelia:0.3.22 AS ofelia-builder
@@ -14,7 +18,7 @@ FROM nousresearch/hermes-agent:${HERMES_VERSION}
 USER root
 
 # Buzz CLI ikili dosyasını kopyalıyoruz
-COPY --from=buzz-builder /usr/local/cargo/bin/buzz /usr/local/bin/buzz
+COPY --from=buzz-builder /usr/local/bin/buzz /usr/local/bin/buzz
 RUN chmod +x /usr/local/bin/buzz
 
 # Ofelia ikili dosyasını kopyalıyoruz (docker.sock gerekmiyor, job-local kullanacağız)
