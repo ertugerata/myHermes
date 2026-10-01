@@ -3,8 +3,17 @@
 # MyHermes Docker Compose Başlatma Betiği
 # Bu betik, Hermes Agent ve entegre Ofelia zamanlayıcısını Docker Compose ile arka planda başlatır.
 
+set -e
+
+# Yardım ve Sihirbaz parametre kontrolleri
 if [ "${1:-}" = "wizard" ] || [ "${1:-}" = "--wizard" ] || [ "${1:-}" = "-w" ]; then
     exec bash scripts/setup-wizard.sh
+elif [ "${1:-}" = "help" ] || [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
+    echo "Kullanım: ./hermes-start [wizard | --wizard | -w | help | --help | -h]"
+    echo "  wizard, --wizard, -w  : İnteraktif kurulum sihirbazını başlatır."
+    echo "  help, --help, -h      : Yardım mesajını görüntüler."
+    echo "  (parametresiz)        : .env dosyasını okur ve Docker Compose ile servisleri başlatır."
+    exit 0
 fi
 
 # .env dosyası yoksa kullanıcıya sihirbazı çalıştırma seçeneği sun
