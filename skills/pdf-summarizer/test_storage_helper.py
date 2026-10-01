@@ -352,6 +352,29 @@ class TestStorageHelper(unittest.TestCase):
         res = storage_helper.cmd_ask_open_notebook("Soru nedir?", json_output=True)
         self.assertEqual(res.get('answer'), 'This is the answer')
 
+    @patch('open_notebook_mcp.server.list_notes')
+    def test_cmd_open_notebook_notes(self, mock_list_notes):
+        async def fake_list_notes(notebook_id=None, limit=50):
+            return {'notes': [{'id': 'note:123', 'title': 'Rapor'}]}
+
+        mock_list_notes.side_effect = fake_list_notes
+        os.environ['OPEN_NOTEBOOK_URL'] = 'http://192.168.1.100:5055'
+
+        res = storage_helper.cmd_open_notebook_notes(json_output=True)
+        self.assertIn('notes', res)
+        self.assertEqual(len(res['notes']), 1)
+
+    @patch('open_notebook_mcp.server.get_note')
+    def test_cmd_open_notebook_get_note(self, mock_get_note):
+        async def fake_get_note(note_id):
+            return {'note': {'id': note_id, 'title': 'Rapor', 'content': 'Ozet Content'}}
+
+        mock_get_note.side_effect = fake_get_note
+        os.environ['OPEN_NOTEBOOK_URL'] = 'http://192.168.1.100:5055'
+
+        res = storage_helper.cmd_open_notebook_get_note("note:123", json_output=True)
+        self.assertEqual(res.get('note', {}).get('id'), 'note:123')
+
 
 if __name__ == '__main__':
     unittest.main()

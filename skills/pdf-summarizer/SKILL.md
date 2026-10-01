@@ -21,8 +21,8 @@ Varsayılan klasör yapısı (`/Bilgi_Tabani/02_Okuma_Listesi/` ve `/Bilgi_Taban
 - **`PDF_SUMMARIZER_WEBDAV_READING_LIST`**: WebDAV okuma listesi yolu (Varsayılan: `/Bilgi_Tabani/02_Okuma_Listesi/`)
 - **`PDF_SUMMARIZER_WEBDAV_SHELVES`**: WebDAV akıllı raflar ana dizin yolu (Varsayılan: `/Bilgi_Tabani/03_Akilli_Raflar/`)
 
-#### 3. Open Notebook Bilgi Tabanı MCP Ayarları:
-Open Notebook (https://github.com/lfnovo/open-notebook) ayrı bir IP/ağ üzerinde çalışır ve Model Context Protocol (MCP) vasıtasıyla entegre olur.
+#### 3. Open Notebook Bilgi Tabanı MCP Ayarları (ÖNCELİKLİ HEDEF):
+Open Notebook (https://github.com/lfnovo/open-notebook) ayrı bir IP/ağ üzerinde çalışır ve Model Context Protocol (MCP) vasıtasıyla entegre olur. **Open Notebook, bu becerinin birincil (öncelikli) bilgi tabanı ve çıktı merkezidir.** Döküman özetleri,notlar ve kaynaklar öncelikli olarak Open Notebook'a aktarılır ve tüm çıktılar onun üzerinden alınır/sorgulanır.
 - **`OPEN_NOTEBOOK_URL`**: Open Notebook API sunucu adresi (Örn: `http://192.168.1.100:5055` veya `http://<OPEN_NOTEBOOK_IP>:5055`). Varsayılan: `http://localhost:5055`
 - **`OPEN_NOTEBOOK_PASSWORD`**: Open Notebook API kimlik doğrulama şifresi/anahtarı (Varsa)
 - **`PDF_SUMMARIZER_OPEN_NOTEBOOK_NOTEBOOK`**: Hedef defter ana adı (Varsayılan: `Bilgi Tabani`)
@@ -64,8 +64,14 @@ python3 skills/pdf-summarizer/storage_helper.py move-to-shelf "Rapor_Adi.pdf" "Y
 # Open Notebook MCP bilgi tabanı durumunu kontrol etme:
 python3 skills/pdf-summarizer/storage_helper.py open-notebook-status
 
-# Özet raporu ve dökümanı Open Notebook bilgi tabanına senkronize etme:
+# Özet raporu ve dökümanı Open Notebook bilgi tabanına senkronize etme (ÖNCELİKLİ ADIM):
 python3 skills/pdf-summarizer/storage_helper.py sync-open-notebook "/tmp/Rapor_Adi_Ozet.md" "Yazilim" --doc-file "/tmp/Rapor_Adi.pdf"
+
+# Open Notebook üzerindeki kayıtlı notları/özetleri listeleme:
+python3 skills/pdf-summarizer/storage_helper.py open-notebook-notes
+
+# Open Notebook üzerindeki tekil not içeriğini çekme:
+python3 skills/pdf-summarizer/storage_helper.py open-notebook-get-note "<NOTE_ID>"
 
 # Open Notebook bilgi tabanında vektör araması yapma:
 python3 skills/pdf-summarizer/storage_helper.py search-open-notebook "Yapay zeka uygulamaları"
@@ -123,20 +129,22 @@ Rapor aşağıdaki standart şablona sahip olmalıdır:
 [Dökümanın sunduğu nihai sonuç veya öneriler]
 ```
 
-### 4. Akıllı Raf Düzenleme ve Taşıma Adımı
-1. Üretilen Markdown özet raporunu kategori rafına yükle/kaydet:
+### 4. Open Notebook Bilgi Tabanı Aktarımı (ÖNCELİKLİ MCP ADIMI)
+1. Üretilen akademik özet raporunu ve orijinal dökümanı **öncelikli olarak** Open Notebook MCP sunucusuna aktar:
+   `python3 skills/pdf-summarizer/storage_helper.py sync-open-notebook "/tmp/Rapor_Adı_Ozet.md" "Kategori_Adı" --doc-file "/tmp/Rapor_Adı.pdf"`
+2. Çıktıları ve kayıtlı notları Open Notebook MCP üzerinden sorgula/çek:
+   - Notları listeleme: `python3 skills/pdf-summarizer/storage_helper.py open-notebook-notes`
+   - Not detayını alma: `python3 skills/pdf-summarizer/storage_helper.py open-notebook-get-note "<NOTE_ID>"`
+   - Bilgi tabanında arama yapma: `python3 skills/pdf-summarizer/storage_helper.py search-open-notebook "<ARAMA_SORGUSU>"`
+   - Bilgi tabanına soru sorma: `python3 skills/pdf-summarizer/storage_helper.py ask-open-notebook "<SORU>"`
+
+### 5. Yedek Dizin ve Raf Düzenleme Adımı (Yerel / WebDAV)
+1. Üretilen Markdown özet raporunu yedek kategori rafına yükle/kaydet:
    `python3 skills/pdf-summarizer/storage_helper.py upload-summary "/tmp/Rapor_Adı_Ozet.md" "Kategori_Adı" "Rapor_Adı_Ozet.md"`
 2. Orijinal PDF / döküman dosyasını okuma listesinden kategori rafına taşı:
    `python3 skills/pdf-summarizer/storage_helper.py move-to-shelf "Rapor_Adı.pdf" "Kategori_Adı"`
 
-### 4.5. Open Notebook Bilgi Tabanı Senkronizasyonu (MCP Entegrasyonu)
-1. Üretilen özet raporunu ve dökümanı ayrı IP'deki Open Notebook sunucusuna MCP protokolu üzerinden aktar:
-   `python3 skills/pdf-summarizer/storage_helper.py sync-open-notebook "/tmp/Rapor_Adı_Ozet.md" "Kategori_Adı" --doc-file "/tmp/Rapor_Adı.pdf"`
-2. Gerektiğinde bilgi tabanı içeriğini sorgulamak veya arama yapmak için:
-   - Arama yapma: `python3 skills/pdf-summarizer/storage_helper.py search-open-notebook "Sorgu metni"`
-   - Soru sorma: `python3 skills/pdf-summarizer/storage_helper.py ask-open-notebook "Bilgi tabanındaki soru"`
-
-### 5. Bildirim Gönderme (Buzz Kanalı)
+### 6. Bildirim Gönderme (Buzz Kanalı)
 1. Özetleme ve raf düzenleme işlemleri tamamlandıktan sonra, özet raporunun hazırlandığına dair bir bildirim mesajı oluştur.
 2. Bildirim mesajında dosya adı, kategori rafı, işlenme tarihi ve kısa özet bilgisi yer almalıdır.
 3. Bu bildirimi **Buzz kanalı** (hermes-in-buzz / buzz-skills) üzerinden ilgili kanala / kullanıcıya gönder.

@@ -842,6 +842,50 @@ def cmd_ask_open_notebook(question: str, notebook_id: Optional[str] = None, json
         return err_res
 
 
+def cmd_open_notebook_notes(notebook_id: Optional[str] = None, json_output: bool = True) -> Dict[str, Any]:
+    """Open Notebook Bilgi Tabanındaki tüm notları/özetleri listeler."""
+    cfg = get_open_notebook_config()
+    os.environ['OPEN_NOTEBOOK_URL'] = cfg['url']
+    if cfg['password']:
+        os.environ['OPEN_NOTEBOOK_PASSWORD'] = cfg['password']
+    elif 'OPEN_NOTEBOOK_PASSWORD' in os.environ and not cfg['password']:
+        del os.environ['OPEN_NOTEBOOK_PASSWORD']
+
+    try:
+        import open_notebook_mcp.server as on_mcp
+        notes_res = _run_async(on_mcp.list_notes(notebook_id=notebook_id, limit=50))
+        if json_output:
+            print(json.dumps(notes_res, indent=2, ensure_ascii=False))
+        return notes_res
+    except Exception as e:
+        err_res = {'error': str(e)}
+        if json_output:
+            print(json.dumps(err_res, indent=2, ensure_ascii=False))
+        return err_res
+
+
+def cmd_open_notebook_get_note(note_id: str, json_output: bool = True) -> Dict[str, Any]:
+    """Open Notebook Bilgi Tabanındaki tekil bir not/özet detayını çeker."""
+    cfg = get_open_notebook_config()
+    os.environ['OPEN_NOTEBOOK_URL'] = cfg['url']
+    if cfg['password']:
+        os.environ['OPEN_NOTEBOOK_PASSWORD'] = cfg['password']
+    elif 'OPEN_NOTEBOOK_PASSWORD' in os.environ and not cfg['password']:
+        del os.environ['OPEN_NOTEBOOK_PASSWORD']
+
+    try:
+        import open_notebook_mcp.server as on_mcp
+        note_res = _run_async(on_mcp.get_note(note_id=note_id))
+        if json_output:
+            print(json.dumps(note_res, indent=2, ensure_ascii=False))
+        return note_res
+    except Exception as e:
+        err_res = {'error': str(e)}
+        if json_output:
+            print(json.dumps(err_res, indent=2, ensure_ascii=False))
+        return err_res
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="PDF Summarizer Depolama Yardımcısı")
     parser.add_argument('--json', action='store_true', help='Çıktıyı JSON formatında sunar (status ve list komutları için)')
@@ -886,6 +930,12 @@ def main() -> None:
     ak_p.add_argument("question", help="Sorulacak soru")
     ak_p.add_argument("--notebook-id", help="Defter ID filtrelemesi (isteğe bağlı)", default=None)
 
+    ln_p = subparsers.add_parser("open-notebook-notes", help="Open Notebook bilgi tabanındaki notları listeler")
+    ln_p.add_argument("--notebook-id", help="Defter ID filtrelemesi (isteğe bağlı)", default=None)
+
+    gn_p = subparsers.add_parser("open-notebook-get-note", help="Open Notebook bilgi tabanındaki bir notun detayını çeker")
+    gn_p.add_argument("note_id", help="Not ID (Örn: note:abc123)")
+
     args = parser.parse_args()
 
     if args.command == "setup":
@@ -914,6 +964,10 @@ def main() -> None:
         cmd_search_open_notebook(args.query, notebook_id=args.notebook_id, json_output=args.json)
     elif args.command == "ask-open-notebook":
         cmd_ask_open_notebook(args.question, notebook_id=args.notebook_id, json_output=args.json)
+    elif args.command == "open-notebook-notes":
+        cmd_open_notebook_notes(notebook_id=args.notebook_id, json_output=args.json)
+    elif args.command == "open-notebook-get-note":
+        cmd_open_notebook_get_note(args.note_id, json_output=args.json)
     else:
         parser.print_help()
 
