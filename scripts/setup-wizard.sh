@@ -32,7 +32,7 @@ echo
 # -----------------------------------------------------------------------------
 # STEP 1: Dashboard Kimlik Doğrulama Bilgileri
 # -----------------------------------------------------------------------------
-echo -e "${BLUE}${BOLD}[Adım 1/5] Dashboard Giriş Bilgileri (Basic Auth)${NC}"
+echo -e "${BLUE}${BOLD}[Adım 1/6] Dashboard Giriş Bilgileri (Basic Auth)${NC}"
 echo "Dış dünyaya veya ağa açık dashboard arayüzüne giriş için kimlik bilgileri gereklidir."
 
 read -rp "Yönetici Kullanıcı Adı [Varsayılan: admin]: " db_username
@@ -52,7 +52,7 @@ echo
 # -----------------------------------------------------------------------------
 # STEP 2: Yapay Zeka (AI) API Anahtarları
 # -----------------------------------------------------------------------------
-echo -e "${BLUE}${BOLD}[Adım 2/5] Yapay Zeka (AI) API Anahtarları${NC}"
+echo -e "${BLUE}${BOLD}[Adım 2/6] Yapay Zeka (AI) API Anahtarları${NC}"
 echo "Kullanmak istediğiniz servislerin API anahtarlarını giriniz. Boş bırakılanlar tanımlanmayacaktır."
 echo
 
@@ -66,7 +66,7 @@ echo
 # -----------------------------------------------------------------------------
 # STEP 3: GitHub Otomatik Yedekleme Ayarları
 # -----------------------------------------------------------------------------
-echo -e "${BLUE}${BOLD}[Adım 3/5] GitHub Otomatik Yedekleme ve Geri Yükleme${NC}"
+echo -e "${BLUE}${BOLD}[Adım 3/6] GitHub Otomatik Yedekleme ve Geri Yükleme${NC}"
 echo "Sohbet oturumlarınızın, verilerinizin ve ayarlarınızın kaybolmaması için"
 echo "GitHub tabanlı bir yedekleme sistemi kurmanızı şiddetle tavsiye ederiz."
 read -rp "GitHub yedekleme sistemini aktifleştirmek ister misiniz? (e/h) [Varsayılan: h]: " enable_backup
@@ -94,7 +94,7 @@ echo
 # -----------------------------------------------------------------------------
 # STEP 4: PDF Summarizer & Smart Shelf Organizer Dizin Yapılandırması
 # -----------------------------------------------------------------------------
-echo -e "${BLUE}${BOLD}[Adım 4/5] PDF Summarizer Dizin Yapılandırması (Local / WebDAV)${NC}"
+echo -e "${BLUE}${BOLD}[Adım 4/6] PDF Summarizer Dizin Yapılandırması (Local / WebDAV)${NC}"
 echo "PDF Summarizer skill'inin dökümanları tarayacağı ve düzenleyeceği dizin türünü seçin:"
 echo -e "  ${GREEN}1)${NC} Yerel Klasör (Local Directory)"
 echo -e "  ${GREEN}2)${NC} WebDAV Sunucusu"
@@ -153,15 +153,44 @@ else
     echo -e "👉 Okuma Listesi Dizini: ${CYAN}$pdf_local_reading_list${NC}"
     echo -e "👉 Akıllı Raflar Dizini: ${CYAN}$pdf_local_shelves${NC}"
 
-    mkdir -p "$pdf_local_reading_list" "$pdf_local_shelves"
+    mkdir -p "$pdf_local_reading_list" "$pdf_local_shelves" 2>/dev/null || true
     echo -e "👉 ${GREEN}✔ Dizinler başarıyla oluşturuldu.${NC}"
 fi
 echo
 
 # -----------------------------------------------------------------------------
-# STEP 5: Genel Sistem Ayarları
+# STEP 5: Open Notebook MCP Bilgi Tabanı Yapılandırması
 # -----------------------------------------------------------------------------
-echo -e "${BLUE}${BOLD}[Adım 5/5] Genel Sistem Ayarları${NC}"
+echo -e "${BLUE}${BOLD}[Adım 5/6] Open Notebook MCP Bilgi Tabanı Yapılandırması${NC}"
+echo "PDF Summarizer ve bilgi yönetim becerilerinin döküman özetlerini"
+echo "Open Notebook MCP sunucusuna aktarması için gerekli ayarlar:"
+read -rp "Open Notebook entegrasyonu aktifleştirilsin mi? (e/h) [Varsayılan: e]: " enable_open_notebook
+enable_open_notebook=${enable_open_notebook:-e}
+
+open_notebook_url="http://localhost:5055"
+open_notebook_password=""
+open_notebook_name="Bilgi Tabani"
+open_notebook_enabled="true"
+
+if [[ "$enable_open_notebook" =~ ^[EeYy]$ ]]; then
+    open_notebook_enabled="true"
+    read -rp "Open Notebook API URL [Varsayılan: http://localhost:5055]: " open_notebook_url
+    open_notebook_url=${open_notebook_url:-http://localhost:5055}
+    read -rsp "Open Notebook API Şifresi (Yoksa boş bırakın): " open_notebook_password
+    echo
+    read -rp "Varsayılan Defter Adı Prefix'i [Varsayılan: Bilgi Tabani]: " open_notebook_name
+    open_notebook_name=${open_notebook_name:-Bilgi Tabani}
+    echo -e "👉 Open Notebook Entegrasyonu: ${GREEN}AKTİF${NC} (URL: ${CYAN}$open_notebook_url${NC})"
+else
+    open_notebook_enabled="false"
+    echo -e "👉 Open Notebook entegrasyonu pasif bırakıldı."
+fi
+echo
+
+# -----------------------------------------------------------------------------
+# STEP 6: Genel Sistem Ayarları
+# -----------------------------------------------------------------------------
+echo -e "${BLUE}${BOLD}[Adım 6/6] Genel Sistem Ayarları${NC}"
 read -rp "Dinlenecek Port Numarası [Varsayılan: 7860]: " app_port
 app_port=${app_port:-7860}
 echo -e "👉 Uygulama Portu: ${CYAN}$app_port${NC}"
@@ -221,6 +250,16 @@ else
     [ -n "$pdf_local_shelves" ] && echo "PDF_SUMMARIZER_LOCAL_SHELVES=$pdf_local_shelves" >> "$ENV_FILE"
 fi
 
+cat << EOF >> "$ENV_FILE"
+
+# 6. Open Notebook MCP Bilgi Tabanı Ayarları
+PDF_SUMMARIZER_OPEN_NOTEBOOK_ENABLED=$open_notebook_enabled
+OPEN_NOTEBOOK_URL=$open_notebook_url
+EOF
+
+[ -n "$open_notebook_password" ] && echo "OPEN_NOTEBOOK_PASSWORD=$open_notebook_password" >> "$ENV_FILE"
+echo "PDF_SUMMARIZER_OPEN_NOTEBOOK_NOTEBOOK=$open_notebook_name" >> "$ENV_FILE"
+
 chmod 600 "$ENV_FILE"
 echo -e "${GREEN}${BOLD}✔ Konfigürasyon başarıyla .env dosyasına kaydedildi!${NC}"
 echo
@@ -253,10 +292,10 @@ if [[ "$auto_run" =~ ^[EeYy]$ ]]; then
     echo -e "\n${YELLOW}Git Submodule'ler güncelleniyor...${NC}"
     git submodule update --init --recursive 2>/dev/null || true
     echo -e "\n${YELLOW}Docker Compose ile servisler başlatılıyor...${NC}"
-    if command -v docker-compose &>/dev/null; then
-        COMPOSE_CMD="docker-compose"
-    elif docker compose version &>/dev/null; then
+    if docker compose version &>/dev/null; then
         COMPOSE_CMD="docker compose"
+    elif command -v docker-compose &>/dev/null; then
+        COMPOSE_CMD="docker-compose"
     else
         COMPOSE_CMD=""
     fi
