@@ -526,6 +526,8 @@ REQUIRED_PACKAGES = {
     'pypdf': 'pypdf>=4.0.0',
     'pdfplumber': 'pdfplumber>=0.10.0',
     'docx': 'python-docx>=1.0.0',
+    'mcp': 'mcp<2',
+    'open_notebook_mcp': 'open-notebook-mcp>=0.3.0',
 }
 
 
@@ -597,6 +599,249 @@ def cmd_move_to_shelf(filename: str, category_name: str, new_filename: Optional[
         print(f"✔ Yerel dosya taşındı: {src_local} -> {dest_local}")
 
 
+def get_open_notebook_config() -> Dict[str, Any]:
+    """Open Notebook MCP entegrasyon konfigürasyonunu okur."""
+    url = os.environ.get('OPEN_NOTEBOOK_URL', 'http://localhost:5055').rstrip('/')
+    password = os.environ.get('OPEN_NOTEBOOK_PASSWORD', '')
+    default_notebook = os.environ.get('PDF_SUMMARIZER_OPEN_NOTEBOOK_NOTEBOOK', 'Bilgi Tabani')
+    enabled_str = os.environ.get('PDF_SUMMARIZER_OPEN_NOTEBOOK_ENABLED', 'true').lower()
+    enabled = enabled_str in ('true', '1', 'yes', 'on')
+    return {
+        'url': url,
+        'password': password,
+        'default_notebook': default_notebook,
+        'enabled': enabled
+    }
+
+
+def _run_async(coro: Any) -> Any:
+    """Async bir coroutine'i senkron çalışma zamanında yürütür."""
+    import asyncio
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    if loop and loop.is_running():
+        import nest_asyncio
+        nest_asyncio.apply()
+        return loop.run_until_complete(coro)
+    else:
+        return asyncio.run(coro)
+
+
+def cmd_open_notebook_status(json_output: bool = False) -> Dict[str, Any]:
+    """Open Notebook MCP sunucusu ile bağlantı durumunu kontrol eder."""
+    cfg = get_open_notebook_config()
+    status_info: Dict[str, Any] = {
+        'url': cfg['url'],
+        'enabled': cfg['enabled'],
+        'connected': False,
+        'notebooks_count': 0,
+        'error': None
+    }
+
+    if not cfg['enabled']:
+        status_info['error'] = "Open Notebook entegrasyonu devre dışı bırakılmış."
+        if not json_output:
+            print(f"⚠️ Open Notebook MCP Entegrasyonu Devre Dışı (URL: {cfg['url']})")
+        else:
+            print(json.dumps(status_info, indent=2, ensure_ascii=False))
+        return status_info
+
+    os.environ['OPEN_NOTEBOOK_URL'] = cfg['url']
+    if cfg['password']:
+        os.environ['OPEN_NOTEBOOK_PASSWORD'] = cfg['password']
+    elif 'OPEN_NOTEBOOK_PASSWORD' in os.environ and not cfg['password']:
+        del os.environ['OPEN_NOTEBOOK_PASSWORD']
+
+    try:
+        import open_notebook_mcp.server as on_mcp
+        result = _run_async(on_mcp.list_notebooks(limit=50))
+        notebooks = result.get('notebooks', []) if isinstance(result, dict) else []
+        status_info['connected'] = True
+        status_info['notebooks_count'] = len(notebooks)
+        status_info['notebooks'] = [
+            {'id': nb.get('id'), 'name': nb.get('name')} for nb in notebooks if isinstance(nb, dict)
+        ]
+    except Exception as e:
+        status_info['error'] = str(e)
+
+    if not json_output:
+        print("=== Open Notebook MCP Bilgi Tabanı Bağlantı Durumu ===")
+        print(f"Sunucu Adresi (URL): {cfg['url']}")
+        print(f"Entegrasyon Durumu: {'AKTİF' if cfg['enabled'] else 'PASİF'}")
+        if status_info['connected']:
+            print(f"✅ Open Notebook MCP bağlantısı başarılı! ({status_info['notebooks_count']} defter bulundu)")
+        else:
+            print(f"❌ Open Notebook MCP bağlantı hatası: {status_info.get('error', 'Bilinmeyen hata')}")
+    else:
+        print(json.dumps(status_info, indent=2, ensure_ascii=False))
+
+    return status_info
+
+
+def cmd_sync_open_notebook(
+    summary_file: str,
+    category_name: str,
+    doc_file: Optional[str] = None,
+    json_output: bool = True
+) -> Dict[str, Any]:
+    """
+    Oluşturulan özet raporunu ve dökümanı Open Notebook Bilgi Tabanına MCP üzerinden senkronize eder.
+    """
+    cfg = get_open_notebook_config()
+    clean_category = safe_category(category_name)
+
+    sync_result: Dict[str, Any] = {
+        'status': 'error',
+        'notebook_id': None,
+        'note_id': None,
+        'source_id': None,
+        'error': None
+    }
+
+    if not cfg['enabled']:
+        sync_result['error'] = 'Open Notebook entegrasyonu devre dışı.'
+        if json_output:
+            print(json.dumps(sync_result, indent=2, ensure_ascii=False))
+        return sync_result
+
+    if not os.path.exists(summary_file):
+        sync_result['error'] = f"Özet dosyası bulunamadı: {summary_file}"
+        if json_output:
+            print(json.dumps(sync_result, indent=2, ensure_ascii=False))
+        return sync_result
+
+    os.environ['OPEN_NOTEBOOK_URL'] = cfg['url']
+    if cfg['password']:
+        os.environ['OPEN_NOTEBOOK_PASSWORD'] = cfg['password']
+    elif 'OPEN_NOTEBOOK_PASSWORD' in os.environ and not cfg['password']:
+        del os.environ['OPEN_NOTEBOOK_PASSWORD']
+
+    try:
+        import open_notebook_mcp.server as on_mcp
+        with open(summary_file, 'r', encoding='utf-8') as f:
+            summary_content = f.read()
+
+        summary_filename = os.path.basename(summary_file)
+
+        # 1. Defter (Notebook) Varlığını Garanti Et
+        nb_list_res = _run_async(on_mcp.list_notebooks(limit=50))
+        notebooks = nb_list_res.get('notebooks', []) if isinstance(nb_list_res, dict) else []
+
+        target_notebook_id = None
+        target_notebook_name = f"{cfg['default_notebook']} - {clean_category}"
+
+        for nb in notebooks:
+            if isinstance(nb, dict) and (nb.get('name') == target_notebook_name or nb.get('name') == clean_category or nb.get('name') == cfg['default_notebook']):
+                target_notebook_id = nb.get('id')
+                break
+
+        if not target_notebook_id:
+            new_nb_res = _run_async(on_mcp.create_notebook(
+                name=target_notebook_name,
+                description=f"Hermes Agent PDF Summarizer Bilgi Tabanı ({clean_category})"
+            ))
+            if isinstance(new_nb_res, dict):
+                target_notebook_id = new_nb_res.get('notebook', {}).get('id')
+
+        sync_result['notebook_id'] = target_notebook_id
+
+        # 2. Özet Raporunu Not (Note) Olarak Ekle
+        clean_title = summary_filename.replace('_Ozet.md', '').replace('.md', '').replace('_', ' ')
+        note_title = f"📑 Özet: {clean_title}"
+        note_res = _run_async(on_mcp.create_note(
+            notebook_id=target_notebook_id,
+            title=note_title,
+            content=summary_content,
+            topics=[clean_category, "PDF_Summarizer", "KnowledgeBase"]
+        ))
+        if isinstance(note_res, dict):
+            sync_result['note_id'] = note_res.get('note', {}).get('id')
+
+        # 3. Orijinal Döküman veya Kaynağı Ekle (Varsa)
+        if doc_file and os.path.exists(doc_file):
+            doc_filename = os.path.basename(doc_file)
+            source_res = _run_async(on_mcp.create_source(
+                notebook_id=target_notebook_id,
+                type="text",
+                title=f"📄 Orijinal Döküman: {doc_filename}",
+                url=None,
+                embed=True
+            ))
+            if isinstance(source_res, dict):
+                sync_result['source_id'] = source_res.get('source', {}).get('id')
+
+        sync_result['status'] = 'success'
+        if not json_output:
+            print(f"✔ Özet ve döküman Open Notebook Bilgi Tabanına aktarıldı (Defter ID: {target_notebook_id}, Not ID: {sync_result['note_id']})")
+
+    except Exception as e:
+        sync_result['error'] = str(e)
+        if not json_output:
+            print(f"⚠️ Open Notebook senkronizasyon hatası: {e}")
+
+    if json_output:
+        print(json.dumps(sync_result, indent=2, ensure_ascii=False))
+
+    return sync_result
+
+
+def cmd_search_open_notebook(query: str, notebook_id: Optional[str] = None, json_output: bool = True) -> Dict[str, Any]:
+    """Open Notebook Bilgi Tabanında vektör/metin araması yapar."""
+    cfg = get_open_notebook_config()
+    os.environ['OPEN_NOTEBOOK_URL'] = cfg['url']
+    if cfg['password']:
+        os.environ['OPEN_NOTEBOOK_PASSWORD'] = cfg['password']
+    elif 'OPEN_NOTEBOOK_PASSWORD' in os.environ and not cfg['password']:
+        del os.environ['OPEN_NOTEBOOK_PASSWORD']
+
+    try:
+        import open_notebook_mcp.server as on_mcp
+        results = _run_async(on_mcp.search(query=query, type="vector", notebook_id=notebook_id, limit=10))
+        if json_output:
+            print(json.dumps(results, indent=2, ensure_ascii=False))
+        return results
+    except Exception as e:
+        err_res = {'error': str(e)}
+        if json_output:
+            print(json.dumps(err_res, indent=2, ensure_ascii=False))
+        return err_res
+
+
+def cmd_ask_open_notebook(question: str, notebook_id: Optional[str] = None, json_output: bool = True) -> Dict[str, Any]:
+    """Open Notebook Bilgi Tabanına soru sorar."""
+    cfg = get_open_notebook_config()
+    os.environ['OPEN_NOTEBOOK_URL'] = cfg['url']
+    if cfg['password']:
+        os.environ['OPEN_NOTEBOOK_PASSWORD'] = cfg['password']
+    elif 'OPEN_NOTEBOOK_PASSWORD' in os.environ and not cfg['password']:
+        del os.environ['OPEN_NOTEBOOK_PASSWORD']
+
+    try:
+        import open_notebook_mcp.server as on_mcp
+        models_res = _run_async(on_mcp.list_models(limit=10))
+        models = models_res.get('models', []) if isinstance(models_res, dict) else []
+        model_id = models[0].get('id') if models and isinstance(models[0], dict) else "default"
+
+        answer_res = _run_async(on_mcp.ask_simple(
+            question=question,
+            strategy_model=model_id,
+            answer_model=model_id,
+            final_answer_model=model_id,
+            notebook_id=notebook_id
+        ))
+        if json_output:
+            print(json.dumps(answer_res, indent=2, ensure_ascii=False))
+        return answer_res
+    except Exception as e:
+        err_res = {'error': str(e)}
+        if json_output:
+            print(json.dumps(err_res, indent=2, ensure_ascii=False))
+        return err_res
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="PDF Summarizer Depolama Yardımcısı")
     parser.add_argument('--json', action='store_true', help='Çıktıyı JSON formatında sunar (status ve list komutları için)')
@@ -625,6 +870,22 @@ def main() -> None:
     mv_p.add_argument("category", help="Kategori adı")
     mv_p.add_argument("--new-name", help="Raftaki yeni dosya adı (isteğe bağlı)", default=None)
 
+    # Open Notebook MCP Subcommands
+    subparsers.add_parser("open-notebook-status", help="Open Notebook MCP sunucusu bağlantı durumunu gösterir")
+
+    sn_p = subparsers.add_parser("sync-open-notebook", help="Özet raporunu Open Notebook bilgi tabanına aktarır")
+    sn_p.add_argument("summary_file", help="Yerel özet dosya yolu")
+    sn_p.add_argument("category", help="Kategori adı")
+    sn_p.add_argument("--doc-file", help="Orijinal döküman dosya yolu (isteğe bağlı)", default=None)
+
+    sr_p = subparsers.add_parser("search-open-notebook", help="Open Notebook bilgi tabanında arama yapar")
+    sr_p.add_argument("query", help="Arama sorgusu")
+    sr_p.add_argument("--notebook-id", help="Defter ID filtrelemesi (isteğe bağlı)", default=None)
+
+    ak_p = subparsers.add_parser("ask-open-notebook", help="Open Notebook bilgi tabanına soru sorar")
+    ak_p.add_argument("question", help="Sorulacak soru")
+    ak_p.add_argument("--notebook-id", help="Defter ID filtrelemesi (isteğe bağlı)", default=None)
+
     args = parser.parse_args()
 
     if args.command == "setup":
@@ -645,6 +906,14 @@ def main() -> None:
         cmd_upload_summary(args.summary_file, args.category, args.filename)
     elif args.command == "move-to-shelf":
         cmd_move_to_shelf(args.filename, args.category, args.new_name)
+    elif args.command == "open-notebook-status":
+        cmd_open_notebook_status(json_output=args.json)
+    elif args.command == "sync-open-notebook":
+        cmd_sync_open_notebook(args.summary_file, args.category, doc_file=args.doc_file, json_output=args.json)
+    elif args.command == "search-open-notebook":
+        cmd_search_open_notebook(args.query, notebook_id=args.notebook_id, json_output=args.json)
+    elif args.command == "ask-open-notebook":
+        cmd_ask_open_notebook(args.question, notebook_id=args.notebook_id, json_output=args.json)
     else:
         parser.print_help()
 

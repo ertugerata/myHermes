@@ -253,6 +253,105 @@ class TestStorageHelper(unittest.TestCase):
         mock_ensure_deps.assert_called_once_with(quiet=False)
         mock_cmd_init_dirs.assert_called_once()
 
+    def test_get_open_notebook_config(self):
+        os.environ['OPEN_NOTEBOOK_URL'] = 'http://192.168.1.100:5055'
+        os.environ['OPEN_NOTEBOOK_PASSWORD'] = 'secret123'
+        os.environ['PDF_SUMMARIZER_OPEN_NOTEBOOK_NOTEBOOK'] = 'Ozel Defter'
+        os.environ['PDF_SUMMARIZER_OPEN_NOTEBOOK_ENABLED'] = 'true'
+
+        cfg = storage_helper.get_open_notebook_config()
+        self.assertEqual(cfg['url'], 'http://192.168.1.100:5055')
+        self.assertEqual(cfg['password'], 'secret123')
+        self.assertEqual(cfg['default_notebook'], 'Ozel Defter')
+        self.assertTrue(cfg['enabled'])
+
+    def test_cmd_open_notebook_status_disabled(self):
+        os.environ['PDF_SUMMARIZER_OPEN_NOTEBOOK_ENABLED'] = 'false'
+        status = storage_helper.cmd_open_notebook_status(json_output=True)
+        self.assertFalse(status['enabled'])
+        self.assertIn("devre dışı", status['error'])
+
+    @patch('open_notebook_mcp.server.list_notebooks')
+    def test_cmd_open_notebook_status_mocked(self, mock_list_notebooks):
+        async def fake_list_notebooks(limit=50):
+            return {'notebooks': [{'id': 'nb1', 'name': 'Bilgi Tabani - Yazilim'}]}
+
+        mock_list_notebooks.side_effect = fake_list_notebooks
+        os.environ['OPEN_NOTEBOOK_URL'] = 'http://192.168.1.100:5055'
+        os.environ['PDF_SUMMARIZER_OPEN_NOTEBOOK_ENABLED'] = 'true'
+
+        status = storage_helper.cmd_open_notebook_status(json_output=True)
+        self.assertTrue(status['connected'])
+        self.assertEqual(status['notebooks_count'], 1)
+
+    @patch('open_notebook_mcp.server.create_source')
+    @patch('open_notebook_mcp.server.create_note')
+    @patch('open_notebook_mcp.server.create_notebook')
+    @patch('open_notebook_mcp.server.list_notebooks')
+    def test_cmd_sync_open_notebook_success(self, mock_list_nb, mock_create_nb, mock_create_note, mock_create_source):
+        async def fake_list_nb(limit=50):
+            return {'notebooks': []}
+
+        async def fake_create_nb(name, description=None):
+            return {'notebook': {'id': 'nb_123', 'name': name}}
+
+        async def fake_create_note(notebook_id, title, content, topics=None):
+            return {'note': {'id': 'note_456', 'title': title}}
+
+        async def fake_create_source(notebook_id, type, url=None, title=None, embed=True):
+            return {'source': {'id': 'source_789', 'title': title}}
+
+        mock_list_nb.side_effect = fake_list_nb
+        mock_create_nb.side_effect = fake_create_nb
+        mock_create_note.side_effect = fake_create_note
+        mock_create_source.side_effect = fake_create_source
+
+        os.environ['OPEN_NOTEBOOK_URL'] = 'http://192.168.1.100:5055'
+        os.environ['PDF_SUMMARIZER_OPEN_NOTEBOOK_ENABLED'] = 'true'
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            sum_file = os.path.join(tmpdir, 'Rapor_Ozet.md')
+            doc_file = os.path.join(tmpdir, 'Rapor.pdf')
+
+            with open(sum_file, 'w', encoding='utf-8') as f:
+                f.write("# Ozet Icerigi")
+            with open(doc_file, 'w', encoding='utf-8') as f:
+                f.write("PDF Content")
+
+            res = storage_helper.cmd_sync_open_notebook(sum_file, 'Yazilim', doc_file=doc_file, json_output=True)
+            self.assertEqual(res['status'], 'success')
+            self.assertEqual(res['notebook_id'], 'nb_123')
+            self.assertEqual(res['note_id'], 'note_456')
+            self.assertEqual(res['source_id'], 'source_789')
+
+    @patch('open_notebook_mcp.server.search')
+    def test_cmd_search_open_notebook(self, mock_search):
+        async def fake_search(query, type="vector", notebook_id=None, limit=10):
+            return {'results': [{'id': 'res1', 'text': 'Match text'}]}
+
+        mock_search.side_effect = fake_search
+        os.environ['OPEN_NOTEBOOK_URL'] = 'http://192.168.1.100:5055'
+
+        res = storage_helper.cmd_search_open_notebook("Yapay Zeka", json_output=True)
+        self.assertIn('results', res)
+        self.assertEqual(len(res['results']), 1)
+
+    @patch('open_notebook_mcp.server.ask_simple')
+    @patch('open_notebook_mcp.server.list_models')
+    def test_cmd_ask_open_notebook(self, mock_models, mock_ask):
+        async def fake_models(limit=10):
+            return {'models': [{'id': 'gpt-4o'}]}
+
+        async def fake_ask(question, strategy_model, answer_model, final_answer_model, notebook_id=None):
+            return {'answer': 'This is the answer'}
+
+        mock_models.side_effect = fake_models
+        mock_ask.side_effect = fake_ask
+        os.environ['OPEN_NOTEBOOK_URL'] = 'http://192.168.1.100:5055'
+
+        res = storage_helper.cmd_ask_open_notebook("Soru nedir?", json_output=True)
+        self.assertEqual(res.get('answer'), 'This is the answer')
+
 
 if __name__ == '__main__':
     unittest.main()

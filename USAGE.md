@@ -134,6 +134,12 @@ Hermes Agent çalışma zamanında konfigürasyon dosyasını varsayılan olarak
 - `GITHUB_TOKEN`
 - `BACKUP_INTERVAL`
 
+### 4. Open Notebook MCP Bilgi Tabanı Değişkenleri
+- `OPEN_NOTEBOOK_URL` (Örn: `http://192.168.1.100:5055` veya `http://<OPEN_NOTEBOOK_IP>:5055`)
+- `OPEN_NOTEBOOK_PASSWORD` (Varsa Open Notebook API şifresi)
+- `PDF_SUMMARIZER_OPEN_NOTEBOOK_NOTEBOOK` (Varsayılan: `Bilgi Tabani`)
+- `PDF_SUMMARIZER_OPEN_NOTEBOOK_ENABLED` (Varsayılan: `true`)
+
 ---
 
 ## ⏰ Entegre `mcuadros/ofelia` Zamanlayıcı ve PDF Summarizer Otomasyonu
