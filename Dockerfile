@@ -1,4 +1,4 @@
-ARG HERMES_VERSION=v2026.9.14
+ARG HERMES_VERSION=v2026.9.24
 ARG BUZZ_VERSION=0.5.23
 
 # Stage 1: Buzz CLI ikili dosyasını GitHub Release paketinden indirme aşaması
