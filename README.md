@@ -31,6 +31,18 @@ Hermes Agent dashboard, skills and automation environment ready for local or ser
 
 `pdf-summarizer` becerisi, döküman özetlerini ve içeriklerini birincil bilgi tabanı olarak [Open Notebook](https://github.com/lfnovo/open-notebook) platformuna **Model Context Protocol (MCP)** vasıtasıyla aktarır ve yönetir. Open Notebook ayrı bir IP/ağ üzerinde çalışabilir.
 
+### 🌐 Ayrı IP / Uzak Sunucu Kurulum Kontrol Listesi:
+
+Open Notebook servisini ayrı bir IP adresinde veya uzak sunucuda çalıştırırken aşağıdaki yapılandırmalara dikkat edilmelidir:
+
+1. **CORS & Bind Address:** Open Notebook uygulamasının `127.0.0.1` yerine `0.0.0.0` IP adresi üzerinde dinleme yaptığından emin olun. Aksi halde dış ağlardan gelen bağlantılar reddedilir.
+2. **Kimlik Doğrulama (Auth Token / API Key):** Servis ağa/internete açık olacağından `OPEN_NOTEBOOK_PASSWORD` (veya Bearer Token) kullanımı zorunlu hale getirilmelidir.
+3. **Güvenlik Duvarı (Firewall / Port):** Open Notebook portunun (varsayılan: `5055`) Hermes sunucusunun IP adresinden gelen isteklere açık olduğunu doğrulayın:
+   ```bash
+   sudo ufw allow from <HERMES_IP> to any port 5055
+   ```
+4. **SSL/TLS & VPN (Güvenli İletişim):** Farklı bir lokasyon veya kamuya açık VPS ortamlarında bağlantı `https://` üzerinden kurulmalı veya Tailscale / WireGuard gibi güvenli bir VPN ağı kullanılmalıdır.
+
 ### ⚙️ MCP Sunucu Yapılandırması (`config.yaml`):
 
 Open Notebook MCP bağlantısı `config.yaml` içerisinde `mcpServers` altında yapılandırılır:
@@ -42,7 +54,7 @@ mcpServers:
     args:
       - "open-notebook-mcp"
     env:
-      OPEN_NOTEBOOK_URL: "http://localhost:5055"
+      OPEN_NOTEBOOK_URL: "http://192.168.1.100:5055"
       OPEN_NOTEBOOK_PASSWORD: "your_open_notebook_password"
 ```
 
