@@ -45,17 +45,16 @@ Open Notebook servisini ayrı bir IP adresinde veya uzak sunucuda çalıştırı
 
 ### ⚙️ MCP Sunucu Yapılandırması (`config.yaml`):
 
-Open Notebook MCP bağlantısı `config.yaml` içerisinde `mcpServers` altında yapılandırılır:
+Open Notebook MCP bağlantısı `config.yaml` içerisinde `mcp_servers` altında yapılandırılır:
 
 ```yaml
-mcpServers:
+mcp_servers:
   open-notebook:
-    command: "uvx"
-    args:
-      - "open-notebook-mcp"
+    command: "open-notebook-mcp"
+    args: []
     env:
       OPEN_NOTEBOOK_URL: "http://192.168.1.100:5055"
-      OPEN_NOTEBOOK_PASSWORD: "your_open_notebook_password"
+      OPEN_NOTEBOOK_PASSWORD: "${OPEN_NOTEBOOK_PASSWORD}"
 ```
 
 ### ⚙️ MCP Çevre Değişkenleri (`.env`):

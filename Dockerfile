@@ -36,8 +36,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Uygulama kullanıcısını tanımlayalım
-RUN useradd -m -u 1000 user && \
-    echo "user ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+RUN useradd -m -u 1000 user || true
 
 # Supervisor log/run dizinlerini oluşturup yetkilendiriyoruz
 RUN mkdir -p /var/log/supervisor /var/run/supervisor && \

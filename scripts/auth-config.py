@@ -137,17 +137,21 @@ if should_enable_buzz:
 
 # Open Notebook MCP Servers Configuration
 open_notebook_url = os.environ.get('OPEN_NOTEBOOK_URL', 'http://localhost:5055').strip()
-open_notebook_password = os.environ.get('OPEN_NOTEBOOK_PASSWORD', '').strip()
 
-mcp_servers = cfg.setdefault('mcpServers', {})
+if 'mcpServers' in cfg:
+    del cfg['mcpServers']
+
+mcp_servers = cfg.setdefault('mcp_servers', {})
 open_notebook_mcp = mcp_servers.setdefault('open-notebook', {
-    'command': 'uvx',
-    'args': ['open-notebook-mcp'],
+    'command': 'open-notebook-mcp',
+    'args': [],
     'env': {}
 })
+open_notebook_mcp['command'] = 'open-notebook-mcp'
+open_notebook_mcp['args'] = []
 open_notebook_env = open_notebook_mcp.setdefault('env', {})
 open_notebook_env['OPEN_NOTEBOOK_URL'] = open_notebook_url
-open_notebook_env['OPEN_NOTEBOOK_PASSWORD'] = open_notebook_password
+open_notebook_env['OPEN_NOTEBOOK_PASSWORD'] = '${OPEN_NOTEBOOK_PASSWORD}'
 
 # Save back to CONFIG_SRC
 with open(config_path, 'w') as f:

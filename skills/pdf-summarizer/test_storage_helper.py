@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Unit/Integration test suite for storage_helper.py (Open Notebook + Buzz integration).
+Unit test suite for storage_helper.py (Open Notebook + Buzz integration).
 """
 
 import unittest
@@ -10,37 +10,64 @@ import storage_helper
 
 class TestStorageHelper(unittest.TestCase):
 
-    @patch("urllib.request.urlopen")
-    def test_list_notebooks(self, mock_urlopen):
+    @patch("httpx.Client")
+    def test_list_notebooks(self, mock_client_cls):
+        mock_client = MagicMock()
         mock_response = MagicMock()
-        mock_response.read.return_value = b'[{"id": "nb-1", "title": "Test Notebook"}]'
-        mock_urlopen.return_value.__enter__.return_value = mock_response
+        mock_response.status_code = 200
+        mock_response.json.return_value = [{"id": "nb-1", "name": "Test Notebook"}]
+        mock_client.get.return_value = mock_response
+        mock_client_cls.return_value.__enter__.return_value = mock_client
 
         res = storage_helper.list_notebooks()
         self.assertEqual(len(res), 1)
         self.assertEqual(res[0]["id"], "nb-1")
+        self.assertEqual(res[0]["name"], "Test Notebook")
+        mock_client.get.assert_called_once_with("http://localhost:5055/api/notebooks")
 
+    @patch("storage_helper.list_notebooks")
     @patch("storage_helper.send_to_buzz")
-    @patch("urllib.request.urlopen")
-    def test_add_source_with_buzz(self, mock_urlopen, mock_send_buzz):
-        mock_response = MagicMock()
-        mock_response.read.return_value = b'{"id": "src-1", "status": "uploaded"}'
-        mock_urlopen.return_value.__enter__.return_value = mock_response
+    @patch("httpx.Client")
+    def test_add_source_url_with_buzz(self, mock_client_cls, mock_send_buzz, mock_list_notebooks):
+        mock_list_notebooks.return_value = [{"id": "nb-1", "name": "Bilgi Tabani"}]
 
-        res = storage_helper.add_source("nb-1", file_path="/tmp/test.pdf", notify_buzz=True)
+        mock_client = MagicMock()
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"id": "src-1", "type": "link"}
+        mock_client.post.return_value = mock_response
+        mock_client_cls.return_value.__enter__.return_value = mock_client
+
+        res = storage_helper.add_source(notebook_id="nb-1", url="https://example.com/doc.pdf", notify_buzz=True)
         self.assertEqual(res["id"], "src-1")
         mock_send_buzz.assert_called_once()
+        mock_client.post.assert_called_once_with(
+            "http://localhost:5055/api/sources",
+            json={"type": "link", "url": "https://example.com/doc.pdf", "notebooks": ["nb-1"]}
+        )
 
     @patch("storage_helper.send_to_buzz")
-    @patch("urllib.request.urlopen")
-    def test_trigger_summary_with_buzz(self, mock_urlopen, mock_send_buzz):
+    @patch("httpx.Client")
+    def test_trigger_summary_with_buzz(self, mock_client_cls, mock_send_buzz):
+        mock_client = MagicMock()
         mock_response = MagicMock()
-        mock_response.read.return_value = b'{"summary": "This is an AI summary."}'
-        mock_urlopen.return_value.__enter__.return_value = mock_response
+        mock_response.status_code = 202
+        mock_response.content = b'{"summary": "This is an AI summary."}'
+        mock_response.json.return_value = {"summary": "This is an AI summary."}
+        mock_client.post.return_value = mock_response
+        mock_client_cls.return_value.__enter__.return_value = mock_client
 
-        res = storage_helper.trigger_summary("nb-1", source_id="src-1", notify_buzz=True)
+        res = storage_helper.trigger_summary(notebook_id="nb-1", source_id="src-1", notify_buzz=True)
         self.assertEqual(res["summary"], "This is an AI summary.")
         mock_send_buzz.assert_called_once()
+        mock_client.post.assert_called_once_with("http://localhost:5055/api/sources/src-1/insights", json={})
+
+    def test_init_dirs(self):
+        # Ensure init-dirs executes gracefully for start.sh backward compatibility
+        try:
+            storage_helper.init_dirs()
+        except Exception as e:
+            self.fail(f"init_dirs raised exception: {e}")
 
 
 if __name__ == "__main__":

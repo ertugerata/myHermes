@@ -79,9 +79,9 @@ do_git_backup() {
     rm -rf "$BACKUP_GIT_DIR/.hermes/venv"
     rm -rf "$BACKUP_GIT_DIR/.hermes/node_modules"
 
-    # Sync config.yaml if it exists
+    # Sync config.yaml if it exists (masking any plain-text hardcoded passwords)
     if [ -f "$HOME/app/config.yaml" ]; then
-        cp -f "$HOME/app/config.yaml" "$BACKUP_GIT_DIR/config.yaml"
+        sed -E 's/(password:\s*)"[^"]+"/\1""/g' "$HOME/app/config.yaml" > "$BACKUP_GIT_DIR/config.yaml"
     fi
 
     # Sync user backup.log to the repository so the history persists
