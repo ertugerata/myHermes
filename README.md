@@ -31,38 +31,52 @@ Hermes Agent dashboard, skills and automation environment ready for local or ser
 
 `pdf-summarizer` becerisi, döküman özetlerini ve içeriklerini birincil bilgi tabanı olarak [Open Notebook](https://github.com/lfnovo/open-notebook) platformuna **Model Context Protocol (MCP)** vasıtasıyla aktarır ve yönetir. Open Notebook ayrı bir IP/ağ üzerinde çalışabilir.
 
-### ⚙️ MCP Bağlantı Ayarları (`.env`):
-Ayrı bir IP adresinde bulunan Open Notebook sunucusuna bağlanmak için aşağıdaki çevre değişkenlerini ekleyin:
+### ⚙️ MCP Sunucu Yapılandırması (`config.yaml`):
+
+Open Notebook MCP bağlantısı `config.yaml` içerisinde `mcpServers` altında yapılandırılır:
+
+```yaml
+mcpServers:
+  open-notebook:
+    command: "uvx"
+    args:
+      - "open-notebook-mcp"
+    env:
+      OPEN_NOTEBOOK_URL: "http://localhost:5055"
+      OPEN_NOTEBOOK_PASSWORD: "your_open_notebook_password"
+```
+
+### ⚙️ MCP Çevre Değişkenleri (`.env`):
+Ayrı bir IP/port üzerinde çalışan Open Notebook sunucusuna bağlanmak için aşağıdaki çevre değişkenlerini ekleyebilirsiniz:
 
 ```env
-# Open Notebook API Sunucu Adresi (Ayrı IP/Ağ üzerindeki sunucu)
+# Open Notebook API Sunucu Adresi
 OPEN_NOTEBOOK_URL=http://192.168.1.100:5055
 
-# Kimlik Doğrulama Şifresi (Eğer Open Notebook üzerinde şifre koruması aktifse)
+# Kimlik Doğrulama Şifresi (Eğer şifre koruması aktifse)
 OPEN_NOTEBOOK_PASSWORD=your_password_here
 
-# Hedef Defter Adı Prefix'i (Varsayılan: Bilgi Tabani)
-PDF_SUMMARIZER_OPEN_NOTEBOOK_NOTEBOOK=Bilgi Tabani
-
-# MCP Entegrasyonu Aktiflik Durumu (true/false)
-PDF_SUMMARIZER_OPEN_NOTEBOOK_ENABLED=true
+# Buzz Webhook Bildirim Adresi (İsteğe bağlı)
+BUZZ_WEBHOOK_URL=https://relay.buzz.community/webhook/...
 ```
 
 ### 🛠️ Depolama Yardımcısı CLI Komutları:
+
 ```bash
-# MCP Bağlantı durumunu kontrol etme:
-python3 skills/pdf-summarizer/storage_helper.py open-notebook-status
+# Defterleri listeleme:
+python3 skills/pdf-summarizer/storage_helper.py --action list_notebooks
 
-# Özet raporu ve dökümanı Open Notebook Bilgi Tabanına senkronize etme:
-python3 skills/pdf-summarizer/storage_helper.py sync-open-notebook "/tmp/Rapor_Ozet.md" "Yazilim" --doc-file "/tmp/Rapor.pdf"
+# Yeni defter oluşturma:
+python3 skills/pdf-summarizer/storage_helper.py --action create_notebook --title "Araştırma Makaleleri"
 
-# Kayıtlı notları/özetleri listeleme ve içerik çekme:
-python3 skills/pdf-summarizer/storage_helper.py open-notebook-notes
-python3 skills/pdf-summarizer/storage_helper.py open-notebook-get-note "<NOTE_ID>"
+# Uygun deftere dosya (PDF/Doc) veya URL ekleme (isteğe bağlı Buzz bildirimi ile):
+python3 skills/pdf-summarizer/storage_helper.py --action add_source --notebook-id <NOTEBOOK_ID> --file-path /path/to/document.pdf --notify-buzz
 
-# Bilgi tabanında vektör araması ve soru sorma:
-python3 skills/pdf-summarizer/storage_helper.py search-open-notebook "Yapay zeka modelleri"
-python3 skills/pdf-summarizer/storage_helper.py ask-open-notebook "Raporlardaki ana bulgular nelerdir?"
+# Defterdeki dökümana özet çıkarttırma:
+python3 skills/pdf-summarizer/storage_helper.py --action summarize --notebook-id <NOTEBOOK_ID> --source-id <SOURCE_ID> --notify-buzz
+
+# Çıkartılan özeti / kaynak detaylarını alma:
+python3 skills/pdf-summarizer/storage_helper.py --action get_summary --source-id <SOURCE_ID>
 ```
 
 For detailed documentation, configuration options, backup options, and skill details, see [USAGE.md](USAGE.md).

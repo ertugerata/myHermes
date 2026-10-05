@@ -135,6 +135,20 @@ if should_enable_buzz:
     elif 'require_mention' not in buzz_extra:
         buzz_extra['require_mention'] = True
 
+# Open Notebook MCP Servers Configuration
+open_notebook_url = os.environ.get('OPEN_NOTEBOOK_URL', 'http://localhost:5055').strip()
+open_notebook_password = os.environ.get('OPEN_NOTEBOOK_PASSWORD', '').strip()
+
+mcp_servers = cfg.setdefault('mcpServers', {})
+open_notebook_mcp = mcp_servers.setdefault('open-notebook', {
+    'command': 'uvx',
+    'args': ['open-notebook-mcp'],
+    'env': {}
+})
+open_notebook_env = open_notebook_mcp.setdefault('env', {})
+open_notebook_env['OPEN_NOTEBOOK_URL'] = open_notebook_url
+open_notebook_env['OPEN_NOTEBOOK_PASSWORD'] = open_notebook_password
+
 # Save back to CONFIG_SRC
 with open(config_path, 'w') as f:
     yaml.safe_dump(cfg, f, default_flow_style=False)
