@@ -163,7 +163,10 @@ echo
 # -----------------------------------------------------------------------------
 echo -e "${BLUE}${BOLD}[Adım 5/6] Open Notebook MCP Bilgi Tabanı Yapılandırması${NC}"
 echo "PDF Summarizer ve bilgi yönetim becerilerinin döküman özetlerini"
-echo "Open Notebook MCP sunucusuna aktarması için gerekli ayarlar:"
+echo "Open Notebook MCP sunucusuna aktarması için gerekli ayarlar."
+echo -e "${YELLOW}Not: Ayrı IP/Sunucu kullanımında Open Notebook'un 0.0.0.0 adresini dinlediğinden,"
+echo -e "OPEN_NOTEBOOK_PASSWORD tanımlandığından ve 5055 portunun ufw/firewall ile açık olduğundan emin olun.${NC}"
+echo
 read -rp "Open Notebook entegrasyonu aktifleştirilsin mi? (e/h) [Varsayılan: e]: " enable_open_notebook
 enable_open_notebook=${enable_open_notebook:-e}
 
