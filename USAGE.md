@@ -16,8 +16,8 @@ Bu kılavuz, **Hermes Agent** web arayüzünün (Dashboard) yerel bir ortamda ve
 3. **İnteraktif Kurulum Sihirbazı (`setup-wizard.sh`) Açıklamaları:**
    - İnteraktif `.env` yapılandırması oluşturan kurulum sihirbazı güncellenmiştir.
 
-4. **`pdf-summarizer` Otomatik Bağımlılık ve Kurulum Yönetimi:**
-   - `pdf-summarizer` skill'inin çalışması için gereken döküman okuma/işleme kütüphaneleri (`pypdf`, `pdfplumber`, `python-docx`) `requirements.txt` dosyasına eklenmiştir.
+4. **`pdf-summarizer` & Open Notebook Otomatik Bağımlılık ve Kurulum Yönetimi:**
+   - `pdf-summarizer` skill'inin Open Notebook REST/MCP API'si ile çalışması için gerekli kütüphaneler (`httpx`, `pydantic`, `python-dotenv`, `pyyaml`, `mcp`, `open-notebook-mcp`) `requirements.txt` dosyasında güncellenmiştir.
 
 ---
 
@@ -37,15 +37,15 @@ Bu projede tüm arka plan süreçleri, otomatik kurtarma, periyodik yedekleme ve
 
 ---
 
-#### ⚙️ Supervisord Süreç Yapılandırması ve Sıralı Başlatma
+#### ⚙️ Süreç Başlatma Sırası ve Supervisord Yapılandırması
 
-Konteyner başlatıldığında supervisord, aşağıdaki süreçleri hiyerarşik öncelik (priority) değerlerine göre sırasıyla ve güvenli bir şekilde çalıştırır:
+Konteyner başlatıldığında `scripts/start.sh` başlangıç işlemlerini senkron olarak tamamlar, ardından Supervisord servisleri yönetir:
 
-1. **`github-restore` (Öncelik: 20):** Başlangıçta varsa GitHub üzerindeki `.hermes` yedeklerinizi geri yükler.
-2. **`auth-config` (Öncelik: 30):** Çevre değişkenlerinden gelen dashboard giriş bilgilerini, Buzz platform ayarlarını ve kimlik doğrulama eklentisini güvenle hazırlar.
-3. **`hermes-dashboard` (Öncelik: 40):** 7860 portunda çalışacak olan ana kontrol panelini ayağa kaldırır.
-4. **`ofelia` (Öncelik: 50):** Konteyner içinde zamanlanmış görevleri (`job-local`) yöneten Ofelia cron zamanlayıcısını çalıştırır.
-5. **`backup-loop` (Öncelik: 60):** `BACKUP_INTERVAL` ile belirlenen aralıklarla (varsayılan: 7200 saniye / 2 saat) değişen verileri algılayarak GitHub yedek deposuna push eder.
+1. **`github-restore` (Başlangıç Adımı):** Başlangıçta GitHub üzerindeki `.hermes` verilerini ve ayarları senkron olarak geri yükler.
+2. **`auth-config` (Başlangıç Adımı):** Geri yükleme bittikten sonra çevre değişkenlerindeki güncel giriş bilgilerini, MCP ve Buzz platform ayarlarını `config.yaml` üzerine işler.
+3. **`hermes-dashboard` (Supervisord - Öncelik: 40):** Port üzerinde çalışacak olan ana kontrol panelini ayağa kaldırır.
+4. **`ofelia` (Supervisord - Öncelik: 50):** Konteyner içinde zamanlanmış görevleri (`job-local`) yöneten Ofelia cron zamanlayıcısını çalıştırır.
+5. **`backup-loop` (Supervisord - Öncelik: 60):** `BACKUP_INTERVAL` ile belirlenen aralıklarla (varsayılan: 7200 saniye / 2 saat) değişen verileri algılayarak GitHub yedek deposuna push eder.
 
 ---
 

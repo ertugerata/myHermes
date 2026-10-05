@@ -181,6 +181,9 @@ if [[ "$enable_open_notebook" =~ ^[EeYy]$ ]]; then
     open_notebook_url=${open_notebook_url:-http://localhost:5055}
     read -rsp "Open Notebook API Şifresi (Yoksa boş bırakın): " open_notebook_password
     echo
+    if [ -z "$open_notebook_password" ]; then
+        echo -e "${RED}⚠️  UYARI: Open Notebook şifresi boş bırakıldı. Şifresiz erişim yetkisiz işlemlere izin verebilir. Şifre kullanmanız şiddetle önerilir.${NC}"
+    fi
     read -rp "Varsayılan Defter Adı Prefix'i [Varsayılan: Bilgi Tabani]: " open_notebook_name
     open_notebook_name=${open_notebook_name:-Bilgi Tabani}
     echo -e "👉 Open Notebook Entegrasyonu: ${GREEN}AKTİF${NC} (URL: ${CYAN}$open_notebook_url${NC})"

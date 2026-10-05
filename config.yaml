@@ -382,14 +382,13 @@ mattermost:
   free_response_channels: ''
   require_mention: true
 mcp_discovery_timeout: 1.5
-mcpServers:
+mcp_servers:
   open-notebook:
-    command: "uvx"
-    args:
-      - "open-notebook-mcp"
+    command: "open-notebook-mcp"
+    args: []
     env:
       OPEN_NOTEBOOK_URL: "http://localhost:5055"
-      OPEN_NOTEBOOK_PASSWORD: ""
+      OPEN_NOTEBOOK_PASSWORD: "${OPEN_NOTEBOOK_PASSWORD}"
 memory:
   flush_min_turns: 6
   memory_char_limit: 2200

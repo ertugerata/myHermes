@@ -30,20 +30,14 @@ echo "Okunan Sürüm: $VERSION"
 # GitHub API'si üzerinden en son yayınlanan (latest release) sürümü kontrol etme
 echo "GitHub üzerinden en son Hermes Agent sürümü kontrol ediliyor..."
 
-# Kimlik doğrulama için token tanımlıysa başlık ekleyelim (oran limitlerini/rate limit aşımını engellemek için)
-AUTH_HEADER=""
+CURL_ARGS=(-s --connect-timeout 5)
 if [ -n "$GITHUB_TOKEN" ]; then
-    AUTH_HEADER="-H \"Authorization: token $GITHUB_TOKEN\""
+    CURL_ARGS+=(-H "Authorization: token $GITHUB_TOKEN")
 elif [ -n "$GH_TOKEN" ]; then
-    AUTH_HEADER="-H \"Authorization: token $GH_TOKEN\""
+    CURL_ARGS+=(-H "Authorization: token $GH_TOKEN")
 fi
 
-# Curl komutunu dinamik başlıkla yürütelim
-if [ -n "$AUTH_HEADER" ]; then
-    LATEST_RELEASE=$(eval "curl -s $AUTH_HEADER --connect-timeout 5 https://api.github.com/repos/NousResearch/hermes-agent/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
-else
-    LATEST_RELEASE=$(curl -s --connect-timeout 5 https://api.github.com/repos/NousResearch/hermes-agent/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
-fi
+LATEST_RELEASE=$(curl "${CURL_ARGS[@]}" https://api.github.com/repos/NousResearch/hermes-agent/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/' || true)
 
 if [ -n "$LATEST_RELEASE" ]; then
     echo "GitHub'daki En Son Sürüm: $LATEST_RELEASE"
