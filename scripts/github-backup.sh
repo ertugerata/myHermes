@@ -72,16 +72,34 @@ do_git_backup() {
     # Copy everything in ~/.hermes except lock files/sockets
     cp -rf "$HOME/.hermes/"* "$BACKUP_GIT_DIR/.hermes/" 2>/dev/null || true
 
-    # Remove large binary directories to stay within GitHub file size limits
+    # Remove large binary directories and sensitive credential files
     rm -rf "$BACKUP_GIT_DIR/.hermes/bin"
     rm -rf "$BACKUP_GIT_DIR/.hermes/node"
     rm -rf "$BACKUP_GIT_DIR/.hermes/hermes-agent"
     rm -rf "$BACKUP_GIT_DIR/.hermes/venv"
     rm -rf "$BACKUP_GIT_DIR/.hermes/node_modules"
+    rm -f "$BACKUP_GIT_DIR/.hermes/auth.json"
+    rm -f "$BACKUP_GIT_DIR/.hermes/"*.key
+    rm -f "$BACKUP_GIT_DIR/.hermes/"*.pem
 
-    # Sync config.yaml if it exists (masking any plain-text hardcoded passwords)
+    # Sync config.yaml if it exists (safely removing any plain-text hardcoded passwords via Python)
     if [ -f "$HOME/app/config.yaml" ]; then
-        sed -E 's/(password:\s*)"[^"]+"/\1""/g' "$HOME/app/config.yaml" > "$BACKUP_GIT_DIR/config.yaml"
+        python3 -c "
+import yaml, sys
+try:
+    with open('$HOME/app/config.yaml') as f:
+        cfg = yaml.safe_load(f) or {}
+    if isinstance(cfg, dict):
+        db = cfg.get('dashboard', {})
+        if isinstance(db, dict):
+            ba = db.get('basic_auth', {})
+            if isinstance(ba, dict) and 'password' in ba:
+                ba['password'] = ''
+    with open('$BACKUP_GIT_DIR/config.yaml', 'w') as f:
+        yaml.safe_dump(cfg, f, default_flow_style=False)
+except Exception as e:
+    sys.stderr.write(f'Error sanitizing config.yaml: {e}\n')
+" || cp -f "$HOME/app/config.yaml" "$BACKUP_GIT_DIR/config.yaml"
     fi
 
     # Sync user backup.log to the repository so the history persists
@@ -106,12 +124,15 @@ do_git_backup() {
 *.lock
 
 # Environment and sensitive credential files
+.hermes/auth.json
+.hermes/*.key
+.hermes/*.pem
 .env
 .env*
 EOF
 
-    # Untrack any accidentally tracked large files/directories or sensitive env files
-    git rm -r --cached .hermes/bin .hermes/node .hermes/hermes-agent .hermes/venv .hermes/node_modules .env .env* 2>/dev/null || true
+    # Untrack any accidentally tracked large files/directories or sensitive env/auth files
+    git rm -r --cached .hermes/bin .hermes/node .hermes/hermes-agent .hermes/venv .hermes/node_modules .hermes/auth.json .hermes/*.key .hermes/*.pem .env .env* 2>/dev/null || true
     git add .
 
     # Check if there are changes to commit

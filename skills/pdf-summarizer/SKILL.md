@@ -1,6 +1,6 @@
 ---
 name: pdf-summarizer
-description: Manages notebooks, attaches PDF/documents, generates AI summaries via Open Notebook, and sends status/summary updates to Buzz channels.
+description: Manages notebooks, attaches PDF/documents or URLs, generates AI summaries via Open Notebook, and sends status/summary updates to Buzz channels.
 ---
 
 # Open Notebook & Buzz Integration Skill
@@ -9,8 +9,8 @@ This skill integrates Hermes with an Open Notebook instance (`lfnovo/open-notebo
 
 ## Features
 - **List & Create Notebooks**: Manage knowledge base collections in Open Notebook.
-- **Add Sources**: Upload PDFs, local files, or web URLs directly to a notebook.
-- **Summarize**: Trigger LLM summary pipelines in Open Notebook.
+- **Add Sources**: Upload PDFs, local files, or web URLs directly to a notebook with automatic vector embedding (`embed=true`).
+- **Summarize & Poll Insights**: Trigger summary transformation pipelines for sources in Open Notebook, poll until completion, and retrieve full summary content.
 - **Buzz Notifications**: Automatically post upload confirmations and generated summaries to the configured Buzz channel.
 
 ## Remote Open Notebook Setup Checklist
@@ -24,6 +24,7 @@ When connecting to a remote Open Notebook instance:
 Ensure these environment variables are set in your `.env` or container environment:
 - `OPEN_NOTEBOOK_URL`: Base URL for Open Notebook (e.g., `http://localhost:5055` or `http://192.168.1.100:5055`)
 - `OPEN_NOTEBOOK_PASSWORD`: Authentication token for Open Notebook API
+- `PDF_SUMMARIZER_OPEN_NOTEBOOK_NOTEBOOK`: Default notebook name (e.g., `Bilgi Tabani`)
 - `BUZZ_WEBHOOK_URL`: Webhook URL for posting messages/summaries back to the Buzz channel (optional)
 
 ## CLI Usage Examples
@@ -35,11 +36,14 @@ python3 storage_helper.py --action list_notebooks
 # Create a new notebook
 python3 storage_helper.py --action create_notebook --title "Research Papers"
 
-# Add a PDF source and automatically notify Buzz
+# Add a PDF source with automatic embedding and Buzz notification
 python3 storage_helper.py --action add_source --notebook-id <NOTEBOOK_ID> --file-path /path/to/document.pdf --notify-buzz
 
-# Trigger summarization and post summary to Buzz channel
-python3 storage_helper.py --action summarize --notebook-id <NOTEBOOK_ID> --source-id <SOURCE_ID> --notify-buzz
+# Add a web URL source with automatic embedding and Buzz notification
+python3 storage_helper.py --action add_source --notebook-id <NOTEBOOK_ID> --url "https://example.com/article" --notify-buzz
+
+# Trigger summary transformation on a source and post final summary to Buzz channel
+python3 storage_helper.py --action summarize --source-id <SOURCE_ID> --notify-buzz
 
 # Get source details or summary
 python3 storage_helper.py --action get_summary --source-id <SOURCE_ID>
