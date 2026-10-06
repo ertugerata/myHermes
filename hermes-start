@@ -38,13 +38,6 @@ set +a
 echo "Git Submodule'ler güncelleniyor..."
 git submodule update --init --recursive 2>/dev/null || true
 
-# Yerel PDF Summarizer dizinleri tanımlıysa önceden oluştur
-if [ "${PDF_SUMMARIZER_TARGET_TYPE:-local}" = "local" ]; then
-    RL_PATH="${PDF_SUMMARIZER_LOCAL_READING_LIST:-./Bilgi_Tabani/02_Okuma_Listesi}"
-    SH_PATH="${PDF_SUMMARIZER_LOCAL_SHELVES:-./Bilgi_Tabani/03_Akilli_Raflar}"
-    mkdir -p "$RL_PATH" "$SH_PATH" 2>/dev/null || true
-fi
-
 # Docker Compose komutunu tespit et
 if docker compose version &>/dev/null; then
     COMPOSE_CMD="docker compose"

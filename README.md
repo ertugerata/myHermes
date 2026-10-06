@@ -29,7 +29,7 @@ Hermes Agent dashboard, skills and automation environment ready for local or ser
 
 ## 📚 Open Notebook MCP Bilgi Tabanı Entegrasyonu
 
-`pdf-summarizer` becerisi, döküman özetlerini ve içeriklerini birincil bilgi tabanı olarak [Open Notebook](https://github.com/lfnovo/open-notebook) platformuna **Model Context Protocol (MCP)** vasıtasıyla aktarır ve yönetir. Open Notebook ayrı bir IP/ağ üzerinde çalışabilir.
+`pdf-summarizer` becerisi, döküman özetlerini ve içeriklerini birincil bilgi tabanı olarak [Open Notebook](https://github.com/lfnovo/open-notebook) platformuna **Model Context Protocol (MCP)** ve REST API vasıtasıyla aktarır ve yönetir. Open Notebook ayrı bir IP/ağ üzerinde çalışabilir.
 
 ### 🌐 Ayrı IP / Uzak Sunucu Kurulum Kontrol Listesi:
 
@@ -67,6 +67,9 @@ OPEN_NOTEBOOK_URL=http://192.168.1.100:5055
 # Kimlik Doğrulama Şifresi (Eğer şifre koruması aktifse)
 OPEN_NOTEBOOK_PASSWORD=your_password_here
 
+# Varsayılan Defter Adı
+PDF_SUMMARIZER_OPEN_NOTEBOOK_NOTEBOOK=Bilgi Tabani
+
 # Buzz Webhook Bildirim Adresi (İsteğe bağlı)
 BUZZ_WEBHOOK_URL=https://relay.buzz.community/webhook/...
 ```
@@ -80,11 +83,14 @@ python3 skills/pdf-summarizer/storage_helper.py --action list_notebooks
 # Yeni defter oluşturma:
 python3 skills/pdf-summarizer/storage_helper.py --action create_notebook --title "Araştırma Makaleleri"
 
-# Uygun deftere dosya (PDF/Doc) veya URL ekleme (isteğe bağlı Buzz bildirimi ile):
+# Uygun deftere dosya (PDF/Doc) ekleme (vektör dizinleme ve isteğe bağlı Buzz bildirimi ile):
 python3 skills/pdf-summarizer/storage_helper.py --action add_source --notebook-id <NOTEBOOK_ID> --file-path /path/to/document.pdf --notify-buzz
 
-# Defterdeki dökümana özet çıkarttırma:
-python3 skills/pdf-summarizer/storage_helper.py --action summarize --notebook-id <NOTEBOOK_ID> --source-id <SOURCE_ID> --notify-buzz
+# Uygun deftere web URL kaynağı ekleme (vektör dizinleme ve isteğe bağlı Buzz bildirimi ile):
+python3 skills/pdf-summarizer/storage_helper.py --action add_source --notebook-id <NOTEBOOK_ID> --url "https://example.com/article" --notify-buzz
+
+# Kaynağa özet çıkarttırma (dönüşüm ID tespiti ve tamamlama sorgulaması ile):
+python3 skills/pdf-summarizer/storage_helper.py --action summarize --source-id <SOURCE_ID> --notify-buzz
 
 # Çıkartılan özeti / kaynak detaylarını alma:
 python3 skills/pdf-summarizer/storage_helper.py --action get_summary --source-id <SOURCE_ID>
