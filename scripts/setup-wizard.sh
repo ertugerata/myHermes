@@ -32,7 +32,7 @@ echo
 # -----------------------------------------------------------------------------
 # STEP 1: Dashboard Kimlik Doğrulama Bilgileri
 # -----------------------------------------------------------------------------
-echo -e "${BLUE}${BOLD}[Adım 1/6] Dashboard Giriş Bilgileri (Basic Auth)${NC}"
+echo -e "${BLUE}${BOLD}[Adım 1/5] Dashboard Giriş Bilgileri (Basic Auth)${NC}"
 echo "Dış dünyaya veya ağa açık dashboard arayüzüne giriş için kimlik bilgileri gereklidir."
 
 read -rp "Yönetici Kullanıcı Adı [Varsayılan: admin]: " db_username
@@ -52,7 +52,7 @@ echo
 # -----------------------------------------------------------------------------
 # STEP 2: Yapay Zeka (AI) API Anahtarları
 # -----------------------------------------------------------------------------
-echo -e "${BLUE}${BOLD}[Adım 2/6] Yapay Zeka (AI) API Anahtarları${NC}"
+echo -e "${BLUE}${BOLD}[Adım 2/5] Yapay Zeka (AI) API Anahtarları${NC}"
 echo "Kullanmak istediğiniz servislerin API anahtarlarını giriniz. Boş bırakılanlar tanımlanmayacaktır."
 echo
 
@@ -66,7 +66,7 @@ echo
 # -----------------------------------------------------------------------------
 # STEP 3: GitHub Otomatik Yedekleme Ayarları
 # -----------------------------------------------------------------------------
-echo -e "${BLUE}${BOLD}[Adım 3/6] GitHub Otomatik Yedekleme ve Geri Yükleme${NC}"
+echo -e "${BLUE}${BOLD}[Adım 3/5] GitHub Otomatik Yedekleme ve Geri Yükleme${NC}"
 echo "Sohbet oturumlarınızın, verilerinizin ve ayarlarınızın kaybolmaması için"
 echo "GitHub tabanlı bir yedekleme sistemi kurmanızı şiddetle tavsiye ederiz."
 read -rp "GitHub yedekleme sistemini aktifleştirmek ister misiniz? (e/h) [Varsayılan: h]: " enable_backup
@@ -92,76 +92,9 @@ fi
 echo
 
 # -----------------------------------------------------------------------------
-# STEP 4: PDF Summarizer & Smart Shelf Organizer Dizin Yapılandırması
+# STEP 4: Open Notebook MCP Bilgi Tabanı Yapılandırması
 # -----------------------------------------------------------------------------
-echo -e "${BLUE}${BOLD}[Adım 4/6] PDF Summarizer Dizin Yapılandırması (Local / WebDAV)${NC}"
-echo "PDF Summarizer skill'inin dökümanları tarayacağı ve düzenleyeceği dizin türünü seçin:"
-echo -e "  ${GREEN}1)${NC} Yerel Klasör (Local Directory)"
-echo -e "  ${GREEN}2)${NC} WebDAV Sunucusu"
-read -rp "Seçiminiz (1-2) [Varsayılan: 1]: " pdf_target_choice
-pdf_target_choice=${pdf_target_choice:-1}
-
-pdf_local_reading_list=""
-pdf_local_shelves=""
-pdf_webdav_url=""
-pdf_webdav_user=""
-pdf_webdav_pass=""
-pdf_webdav_reading_list=""
-pdf_webdav_shelves=""
-
-if [ "$pdf_target_choice" = "2" ]; then
-    PDF_SUMMARIZER_TARGET_TYPE="webdav"
-    echo -e "\n👉 ${CYAN}WebDAV Sunucu Ayarları:${NC}"
-    read -rp "WebDAV Sunucu URL (Örn: https://dav.example.com/remote.php/dav/files/user): " pdf_webdav_url
-    read -rp "WebDAV Kullanıcı Adı: " pdf_webdav_user
-    read -rsp "WebDAV Şifresi / Uygulama Anahtarı: " pdf_webdav_pass
-    echo
-    read -rp "WebDAV Okuma Listesi Yolu [Varsayılan: /Bilgi_Tabani/02_Okuma_Listesi]: " pdf_webdav_reading_list
-    pdf_webdav_reading_list=${pdf_webdav_reading_list:-/Bilgi_Tabani/02_Okuma_Listesi}
-    read -rp "WebDAV Akıllı Raflar Ana Dizin [Varsayılan: /Bilgi_Tabani/03_Akilli_Raflar]: " pdf_webdav_shelves
-    pdf_webdav_shelves=${pdf_webdav_shelves:-/Bilgi_Tabani/03_Akilli_Raflar}
-else
-    PDF_SUMMARIZER_TARGET_TYPE="local"
-    echo -e "\n👉 ${CYAN}Yerel Klasör Ayarları:${NC}"
-    read -rp "Yerel/Sunucu Ana Dizin Yolu (Klasörler bu dizin altında 'Bilgi_Tabani/...' olarak oluşturulacaktır) [Varsayılan: $PROJECT_ROOT]: " pdf_local_base_path
-    pdf_local_base_path=${pdf_local_base_path:-$PROJECT_ROOT}
-    pdf_local_base_path="${pdf_local_base_path/#\~/$HOME}"
-    pdf_local_base_path="${pdf_local_base_path%/}"
-
-    # Auto-fix missing leading slash if path starts with common system root folders
-    if [[ "$pdf_local_base_path" != /* ]] && [[ "$pdf_local_base_path" != \$* ]]; then
-        first_segment="${pdf_local_base_path%%/*}"
-        case "$first_segment" in
-            mnt|media|home|Users|opt|var|tmp|etc|srv|Bilgi_Tabani)
-                pdf_local_base_path="/$pdf_local_base_path"
-                ;;
-        esac
-    fi
-
-    if [[ "$pdf_local_base_path" == */Bilgi_Tabani/02_Okuma_Listesi ]]; then
-        base_dir="${pdf_local_base_path%/Bilgi_Tabani/02_Okuma_Listesi}"
-        pdf_local_reading_list="$pdf_local_base_path"
-        pdf_local_shelves="${base_dir}/Bilgi_Tabani/03_Akilli_Raflar"
-    elif [[ "$pdf_local_base_path" == */Bilgi_Tabani ]]; then
-        pdf_local_reading_list="${pdf_local_base_path}/02_Okuma_Listesi"
-        pdf_local_shelves="${pdf_local_base_path}/03_Akilli_Raflar"
-    else
-        pdf_local_reading_list="${pdf_local_base_path}/Bilgi_Tabani/02_Okuma_Listesi"
-        pdf_local_shelves="${pdf_local_base_path}/Bilgi_Tabani/03_Akilli_Raflar"
-    fi
-
-    echo -e "👉 Okuma Listesi Dizini: ${CYAN}$pdf_local_reading_list${NC}"
-    echo -e "👉 Akıllı Raflar Dizini: ${CYAN}$pdf_local_shelves${NC}"
-
-    mkdir -p "$pdf_local_reading_list" "$pdf_local_shelves" 2>/dev/null || true
-    echo -e "👉 ${GREEN}✔ Dizinler başarıyla oluşturuldu.${NC}"
-fi
-echo
-
-# -----------------------------------------------------------------------------
-# STEP 5: Open Notebook MCP Bilgi Tabanı Yapılandırması
-# -----------------------------------------------------------------------------
-echo -e "${BLUE}${BOLD}[Adım 5/6] Open Notebook MCP Bilgi Tabanı Yapılandırması${NC}"
+echo -e "${BLUE}${BOLD}[Adım 4/5] Open Notebook MCP Bilgi Tabanı Yapılandırması${NC}"
 echo "PDF Summarizer ve bilgi yönetim becerilerinin döküman özetlerini"
 echo "Open Notebook MCP sunucusuna aktarması için gerekli ayarlar."
 echo -e "${YELLOW}Not: Ayrı IP/Sunucu kullanımında Open Notebook'un 0.0.0.0 adresini dinlediğinden,"
@@ -194,9 +127,9 @@ fi
 echo
 
 # -----------------------------------------------------------------------------
-# STEP 6: Genel Sistem Ayarları
+# STEP 5: Genel Sistem Ayarları
 # -----------------------------------------------------------------------------
-echo -e "${BLUE}${BOLD}[Adım 6/6] Genel Sistem Ayarları${NC}"
+echo -e "${BLUE}${BOLD}[Adım 5/5] Genel Sistem Ayarları${NC}"
 read -rp "Dinlenecek Port Numarası [Varsayılan: 7860]: " app_port
 app_port=${app_port:-7860}
 echo -e "👉 Uygulama Portu: ${CYAN}$app_port${NC}"
@@ -241,24 +174,7 @@ fi
 
 cat << EOF >> "$ENV_FILE"
 
-# 5. PDF Summarizer Dizin Yapılandırması
-PDF_SUMMARIZER_TARGET_TYPE=$PDF_SUMMARIZER_TARGET_TYPE
-EOF
-
-if [ "$PDF_SUMMARIZER_TARGET_TYPE" = "webdav" ]; then
-    [ -n "$pdf_webdav_url" ] && echo "PDF_SUMMARIZER_WEBDAV_URL=$pdf_webdav_url" >> "$ENV_FILE"
-    [ -n "$pdf_webdav_user" ] && echo "PDF_SUMMARIZER_WEBDAV_USERNAME=$pdf_webdav_user" >> "$ENV_FILE"
-    [ -n "$pdf_webdav_pass" ] && echo "PDF_SUMMARIZER_WEBDAV_PASSWORD=$pdf_webdav_pass" >> "$ENV_FILE"
-    [ -n "$pdf_webdav_reading_list" ] && echo "PDF_SUMMARIZER_WEBDAV_READING_LIST=$pdf_webdav_reading_list" >> "$ENV_FILE"
-    [ -n "$pdf_webdav_shelves" ] && echo "PDF_SUMMARIZER_WEBDAV_SHELVES=$pdf_webdav_shelves" >> "$ENV_FILE"
-else
-    [ -n "$pdf_local_reading_list" ] && echo "PDF_SUMMARIZER_LOCAL_READING_LIST=$pdf_local_reading_list" >> "$ENV_FILE"
-    [ -n "$pdf_local_shelves" ] && echo "PDF_SUMMARIZER_LOCAL_SHELVES=$pdf_local_shelves" >> "$ENV_FILE"
-fi
-
-cat << EOF >> "$ENV_FILE"
-
-# 6. Open Notebook MCP Bilgi Tabanı Ayarları
+# 5. Open Notebook MCP Bilgi Tabanı Ayarları
 PDF_SUMMARIZER_OPEN_NOTEBOOK_ENABLED=$open_notebook_enabled
 OPEN_NOTEBOOK_URL=$open_notebook_url
 EOF

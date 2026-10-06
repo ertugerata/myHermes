@@ -1,23 +1,28 @@
 # MyHermes Projesi - Detaylı Kullanım Kılavuzu (USAGE.md)
 
-Bu kılavuz, **Hermes Agent** web arayüzünün (Dashboard) yerel bir ortamda veya herhangi bir sunucuda (Docker / Docker Compose) nasıl kurulacağını, çalıştırılacağını, güvenlik yapılandırmalarını, yedekleme mekanizmasını, **önceden yapılan ayarların ve verilerin nasıl korunduğunu (State Preservation)**, **`config.yaml` yapılandırmasının nasıl yüklendiğini**, **beceri (skills) klasörlerinin nasıl bağlandığını (volume)**, **`buzz-skills` kullanımı**, **`pdf-summarizer` Dizin Yapılandırması (Local / WebDAV)** ve **`mcuadros/ofelia` zamanlayıcısı ile otomatik görev çalıştırmayı** detaylandırmaktadır.
+Bu kılavuz, **Hermes Agent** web arayüzünün (Dashboard) yerel bir ortamda veya herhangi bir sunucuda (Docker / Docker Compose) nasıl kurulacağını, çalıştırılacağını, güvenlik yapılandırmalarını, yedekleme mekanizmasını, **önceden yapılan ayarların ve verilerin nasıl korunduğunu (State Preservation)**, **`config.yaml` yapılandırmasının nasıl yüklendiğini**, **beceri (skills) klasörlerinin nasıl bağlandığını (volume)**, **`buzz-skills` kullanımı** ve **`mcuadros/ofelia` zamanlayıcısı ile otomatik görev çalıştırmayı** detaylandırmaktadır.
 
 ---
 
 ## 📌 Son Güncellemeler ve Yapılan Değişiklikler
 
-1. **Hugging Face Bağımlılıklarının Temizlenmesi:**
-   - Hugging Face Spaces entegrasyonu, DoH DNS çözümleyicileri ve Hugging Face bağımlılıkları projeden temizlenmiş; sistem yerel ve sunucu dağıtımları için optimize edilmiştir.
+1. **Open Notebook REST API & Özetleme Düzeltmeleri:**
+   - Kaynak (URL ve dosya) ekleme istekleri Open Notebook API beklentilerine uygun olarak form gövdesi (`data`) üzerinden gönderilmekte ve `embed="true"` parametresi ile vektör arama dizinine otomatik işlenmektedir.
+   - Özet çıkarma sürecinde `transformation_id` ("Simple Summary") dinamik olarak tespit edilmekte, `/api/sources/{id}/insights` başlatıldıktan sonra sonuç tamamlanana kadar sorgulanmakta (polling) ve oluşturulan tam özet metni Buzz kanalına iletilmektedir.
+   - Ağ veya API hatalarında sahte boş liste yanıtı dönülmesi engellenmiş, yinelenen defter oluşumu önlenmiş ve CLI hataları non-zero çıkış kodu ile sonlandırılmıştır.
 
-2. **`ttyd` ve Web TUI Entegrasyonunun Kaldırılması:**
-   - Artık ihtiyaç duyulmayan `ttyd` bağımlılığı ve buna bağlı olarak `7861` portu projeden kaldırılmıştır.
-   - Sistem sadece ana web kontrol paneline (`7860` portu) odaklanmıştır.
+2. **Güvenlik ve Hassas Veri Maskeleme:**
+   - GitHub yedekleme işleminde `config.yaml` içerisindeki düz metin şifreler Python PyYAML ile güvenli şekilde maskelenmekte; `.hermes/auth.json`, `*.key` ve `*.pem` gibi hassas anahtar ve token dosyaları yedekten dışlanmaktadır.
+   - `auth-config.py` başarısızlığında dashboard'un yetkisiz açılmasını önlemek amacıyla fail-closed mantığı uygulanmıştır.
 
-3. **İnteraktif Kurulum Sihirbazı (`setup-wizard.sh`) Açıklamaları:**
-   - İnteraktif `.env` yapılandırması oluşturan kurulum sihirbazı güncellenmiştir.
+3. **Konteyner Kapanış (SIGTERM) ve Yedekleme Güvenilirliği:**
+   - `docker-compose.yml` içerisine `stop_grace_period: 120s` eklenmiş; konteyner durdurulurken arka plan servisleri (`supervisorctl shutdown`) güvenli şekilde durdurulduktan sonra son yedekleme tamamlanacak şekilde yapılandırılmıştır.
 
-4. **`pdf-summarizer` & Open Notebook Otomatik Bağımlılık ve Kurulum Yönetimi:**
-   - `pdf-summarizer` skill'inin Open Notebook REST/MCP API'si ile çalışması için gerekli kütüphaneler (`httpx`, `pydantic`, `python-dotenv`, `pyyaml`, `mcp`, `open-notebook-mcp`) `requirements.txt` dosyasında güncellenmiştir.
+4. **`ttyd` ve Web TUI Entegrasyonunun Kaldırılması:**
+   - Artık ihtiyaç duyulmayan `ttyd` bağımlılığı ve buna bağlı olarak `7861` portu projeden kaldırılmıştır. Sistem sadece ana web kontrol paneline (`7860` portu) odaklanmıştır.
+
+5. **`pdf-summarizer` & Open Notebook Otomatik Bağımlılık ve Kurulum Yönetimi:**
+   - `pdf-summarizer` skill'inin Open Notebook REST/MCP API'si ile çalışması için gerekli kütüphaneler (`httpx`, `pydantic`, `python-dotenv`, `pyyaml`, `mcp`, `open-notebook-mcp`) `requirements.txt` dosyasında güncellenmiştir. Atıl kalan yerel/WebDAV değişkenleri temizlenmiştir.
 
 ---
 
@@ -42,7 +47,7 @@ Bu projede tüm arka plan süreçleri, otomatik kurtarma, periyodik yedekleme ve
 Konteyner başlatıldığında `scripts/start.sh` başlangıç işlemlerini senkron olarak tamamlar, ardından Supervisord servisleri yönetir:
 
 1. **`github-restore` (Başlangıç Adımı):** Başlangıçta GitHub üzerindeki `.hermes` verilerini ve ayarları senkron olarak geri yükler.
-2. **`auth-config` (Başlangıç Adımı):** Geri yükleme bittikten sonra çevre değişkenlerindeki güncel giriş bilgilerini, MCP ve Buzz platform ayarlarını `config.yaml` üzerine işler.
+2. **`auth-config` (Başlangıç Adımı):** Geri yükleme bittikten sonra çevre değişkenlerindeki güncel giriş bilgilerini, MCP ve Buzz platform ayarlarını `config.yaml` üzerine işler (Hata durumunda durur).
 3. **`hermes-dashboard` (Supervisord - Öncelik: 40):** Port üzerinde çalışacak olan ana kontrol panelini ayağa kaldırır.
 4. **`ofelia` (Supervisord - Öncelik: 50):** Konteyner içinde zamanlanmış görevleri (`job-local`) yöneten Ofelia cron zamanlayıcısını çalıştırır.
 5. **`backup-loop` (Supervisord - Öncelik: 60):** `BACKUP_INTERVAL` ile belirlenen aralıklarla (varsayılan: 7200 saniye / 2 saat) değişen verileri algılayarak GitHub yedek deposuna push eder.
@@ -90,7 +95,7 @@ Konteyner her başlatıldığında `scripts/start.sh` önceden yapılandırılm�
 2. **Dashboard Güvenliği (Basic Auth):** Dış dünyaya veya ağa açık arayüzlerde zorunlu olan yönetici kullanıcı adı ve şifresini belirler.
 3. **Yapay Zeka (AI) Sağlayıcı Entegrasyonları:** OpenRouter, OpenAI, Anthropic, DeepSeek, Groq vb. API anahtarlarını yapılandırır.
 4. **GitHub Yedekleme & Kurtarma:** Sohbet geçmişi ve ayarların kaybolmaması için GitHub tabanlı otomatik yedekleme deposunu bağlar.
-5. **PDF Summarizer Dizin Yapılandırması:** Yerel Klasör (`Bilgi_Tabani/...`) veya WebDAV sunucusu ayarlarını ilklendirir.
+5. **Open Notebook MCP Bilgi Tabanı Yapılandırması:** Open Notebook URL, şifre ve varsayılan defter adı ayarlarını yapılandırır.
 
 ### Sihirbazı Çalıştırma:
 ```bash

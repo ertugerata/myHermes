@@ -65,29 +65,12 @@ keys_to_sync = [
     'HERMES_DASHBOARD_BASIC_AUTH_PASSWORD_HASH', 'PORT',
     'OPEN_NOTEBOOK_URL', 'OPEN_NOTEBOOK_PASSWORD',
     'PDF_SUMMARIZER_OPEN_NOTEBOOK_NOTEBOOK', 'PDF_SUMMARIZER_OPEN_NOTEBOOK_ENABLED',
-    'PDF_SUMMARIZER_TARGET_TYPE', 'PDF_SUMMARIZER_LOCAL_READING_LIST',
-    'PDF_SUMMARIZER_LOCAL_SHELVES', 'PDF_SUMMARIZER_WEBDAV_URL',
-    'PDF_SUMMARIZER_WEBDAV_USERNAME', 'PDF_SUMMARIZER_WEBDAV_PASSWORD',
-    'PDF_SUMMARIZER_WEBDAV_READING_LIST', 'PDF_SUMMARIZER_WEBDAV_SHELVES',
-    'WEBDAV_URL', 'WEBDAV_USERNAME', 'WEBDAV_PASSWORD', 'BUZZ_WEBHOOK_URL'
+    'BUZZ_WEBHOOK_URL'
 ]
 
 for k, v in os.environ.items():
-    if k.startswith('HERMES_') or k.startswith('PDF_SUMMARIZER_') or k.startswith('WEBDAV_') or k.startswith('BUZZ_') or k.endswith('_API_KEY') or k.endswith('_TOKEN') or k in keys_to_sync:
+    if k.startswith('HERMES_') or k.startswith('PDF_SUMMARIZER_') or k.startswith('BUZZ_') or k.endswith('_API_KEY') or k.endswith('_TOKEN') or k in keys_to_sync:
         env_dict[k] = v
-
-container_default_rl = os.path.expanduser('~/app/Bilgi_Tabani/02_Okuma_Listesi')
-container_default_sh = os.path.expanduser('~/app/Bilgi_Tabani/03_Akilli_Raflar')
-
-rl_val = env_dict.get('PDF_SUMMARIZER_LOCAL_READING_LIST')
-if rl_val and not os.path.exists(rl_val):
-    env_dict['PDF_SUMMARIZER_LOCAL_READING_LIST'] = container_default_rl
-    os.environ['PDF_SUMMARIZER_LOCAL_READING_LIST'] = container_default_rl
-
-sh_val = env_dict.get('PDF_SUMMARIZER_LOCAL_SHELVES')
-if sh_val and not os.path.exists(sh_val):
-    env_dict['PDF_SUMMARIZER_LOCAL_SHELVES'] = container_default_sh
-    os.environ['PDF_SUMMARIZER_LOCAL_SHELVES'] = container_default_sh
 
 with open(env_path, 'w', encoding='utf-8') as f:
     f.write('# Automatically managed by start.sh\n')
@@ -103,19 +86,25 @@ echo "✔ .env dosyaları başarıyla ~/.hermes/.env ve ~/.config/hermes/.env ko
 echo "✔ Veri geri yükleme aşaması başlatılıyor (github-restore)..."
 bash "$HOME/app/scripts/github-backup.sh" restore || true
 
-# STEP 2: Synchronous Auth & Configuration Patching after restore
+# STEP 2: Synchronous Auth & Configuration Patching after restore (Fail-Closed)
 echo "✔ Konfigürasyon ve kimlik doğrulama ayarları uygulanıyor (auth-config)..."
-"$HERMES_PYTHON" "$HOME/app/scripts/auth-config.py" || true
+"$HERMES_PYTHON" "$HOME/app/scripts/auth-config.py"
 
 # STEP 3: Register graceful shutdown handler for container SIGTERM/SIGINT
 cleanup() {
-    echo "✔ Konteyner durdurma sinyali alındı, son yedek alınıyor..."
+    echo "✔ Konteyner durdurma sinyali alındı. Servisler durduruluyor ve son yedek alınıyor..."
+    if command -v supervisorctl &>/dev/null; then
+        supervisorctl shutdown 2>/dev/null || true
+    fi
+    if [ -n "${SUPERVISOR_PID:-}" ]; then
+        kill -TERM "$SUPERVISOR_PID" 2>/dev/null || true
+    fi
     bash "$HOME/app/scripts/github-backup.sh" backup || true
     exit 0
 }
 trap cleanup SIGTERM SIGINT
 
-# PDF Summarizer hedef dizinlerini ilklendir
+# PDF Summarizer storage helper initialization
 if [ -f "$HOME/app/skills/pdf-summarizer/storage_helper.py" ]; then
     "$HERMES_PYTHON" "$HOME/app/skills/pdf-summarizer/storage_helper.py" init-dirs || true
 fi

@@ -35,8 +35,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Uygulama kullanıcısını tanımlayalım
-RUN useradd -m -u 1000 user || true
+# Uygulama kullanıcısını tanımlayalım (yoksa oluşturalım)
+RUN id -u user >/dev/null 2>&1 || useradd -m -u 1000 user
 
 # Supervisor log/run dizinlerini oluşturup yetkilendiriyoruz
 RUN mkdir -p /var/log/supervisor /var/run/supervisor && \
